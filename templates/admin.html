@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSP Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f1f5f9;
+    color: #1e293b;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: #1e293b;
+    color: #fff;
+    padding: 0 20px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tab-btn:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+  .tab-btn.active { background: rgba(255,255,255,0.18); color: #fff; font-weight: 500; }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .refresh-btn:hover { border-color: #94a3b8; color: #e2e8f0; }
+
+  /* ── Main content ── */
+  .main {
+    padding: 20px;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .search-input {
+    padding: 7px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 280px;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: #94a3b8; }
+  .count-label {
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  /* ── Table container ── */
+  .table-wrap {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+  }
+  thead th {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 9px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+  }
+  thead th:hover { background: #f1f5f9; color: #475569; }
+  thead th.sort-active { color: #1e293b; }
+  .sort-indicator { margin-left: 3px; opacity: 0.6; }
+
+  tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f8fafc !important; }
+  tbody tr.selected { background: #eff6ff !important; }
+
+  td {
+    padding: 8px 10px;
+    vertical-align: middle;
+  }
+  td.right { text-align: right; }
+  td.mono { font-family: "SF Mono", ui-monospace, monospace; font-size: 11.5px; }
+
+  /* Row highlight states */
+  tr.diff-warn { background: #fffbf0; }
+  tr.diff-high { background: #fff3e0; }
+  tr.excluded-row { background: #fff1f2; opacity: 0.75; }
+
+  /* ── Status badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-done    { background: #dcfce7; color: #15803d; }
+  .badge-chatted { background: #dbeafe; color: #1d4ed8; }
+  .badge-surveyed{ background: #f1f5f9; color: #64748b; }
+  .badge-screened{ background: #fee2e2; color: #b91c1c; }
+
+  /* ── Diff colors ── */
+  .diff-green  { color: #16a34a; font-weight: 500; }
+  .diff-amber  { color: #d97706; font-weight: 500; }
+  .diff-orange { color: #ea580c; font-weight: 500; }
+
+  /* ── BFI cell ── */
+  .bfi-cell {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: #475569;
+    cursor: default;
+  }
+
+  /* ── Drawer overlay ── */
+  .drawer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    z-index: 200;
+  }
+  .drawer-overlay.open { display: block; }
+
+  .drawer {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 460px;
+    background: #fff;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+    z-index: 201;
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .drawer-header-info { flex: 1; min-width: 0; }
+  .drawer-pid {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    word-break: break-all;
+  }
+  .drawer-meta {
+    font-size: 11.5px;
+    color: #64748b;
+    margin-top: 3px;
+  }
+  .drawer-close {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .drawer-close:hover { background: #f1f5f9; color: #1e293b; }
+
+  .drawer-body { padding: 16px 18px; }
+
+  .drawer-section {
+    margin-bottom: 20px;
+  }
+  .drawer-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #94a3b8;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 12px;
+  }
+
+  .detail-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .detail-label { color: #64748b; flex-shrink: 0; min-width: 130px; }
+  .detail-value { color: #1e293b; }
+
+  /* ── HSPS item grid ── */
+  .hsps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-top: 8px;
+  }
+  .hsps-cell {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+  .hsps-cell-label { font-weight: 600; color: #475569; margin-bottom: 2px; }
+  .hsps-cell-vals { display: flex; gap: 6px; align-items: center; }
+  .hsps-cell-self { color: #475569; }
+  .hsps-cell-ai   { color: #3b82f6; }
+  .hsps-cell-diff { font-weight: 600; }
+  .hd-zero   { color: #94a3b8; }
+  .hd-small  { color: #16a34a; }
+  .hd-medium { color: #d97706; }
+  .hd-large  { color: #ea580c; }
+
+  /* ── BFI bars ── */
+  .bfi-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .bfi-dim-label { width: 150px; color: #475569; flex-shrink: 0; }
+  .bfi-score-val { width: 28px; text-align: right; font-weight: 600; color: #1e293b; flex-shrink: 0; }
+  .bfi-bar-track {
+    flex: 1;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bfi-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: #94a3b8;
+    transition: width 0.3s;
+  }
+  .bfi-bar-fill.high { background: #3b82f6; }
+  .bfi-bar-fill.low  { background: #f59e0b; }
+
+  /* ── Overview tab ── */
+  .overview-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .card-label {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .card-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .chart-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .cond-table-wrap {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .cond-table-wrap table thead th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cond-table-wrap table td {
+    font-size: 13px;
+    color: #1e293b;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+    font-size: 13px;
+  }
+  .error-msg {
+    text-align: center;
+    padding: 40px;
+    color: #ef4444;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="header-title">HSP Admin</div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('participants')">Participants</button>
+    <button class="tab-btn" onclick="switchTab('overview')">Overview</button>
+  </div>
+  <button class="refresh-btn" onclick="loadAll()">⟳ Refresh</button>
+</div>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- Tab: Participants -->
+  <div id="tab-participants" class="tab-panel active">
+    <div class="toolbar">
+      <input type="text" class="search-input" id="search-input" placeholder="Search Prolific ID…" oninput="onSearch()">
+      <span class="count-label" id="count-label">Loading…</span>
+    </div>
+    <div class="table-wrap">
+      <div id="table-loading" class="loading">Loading participants…</div>
+      <table id="participants-table" style="display:none">
+        <thead>
+          <tr>
+            <th onclick="sortBy('#')">#<span class="sort-indicator" id="si-#"></span></th>
+            <th onclick="sortBy('prolific_id')">Prolific ID<span class="sort-indicator" id="si-prolific_id"></span></th>
+            <th onclick="sortBy('condition')">Condition<span class="sort-indicator" id="si-condition"></span></th>
+            <th onclick="sortBy('hsps_score')" class="right">Self HSPS<span class="sort-indicator" id="si-hsps_score"></span></th>
+            <th onclick="sortBy('ai_hsps_score')" class="right">AI HSPS<span class="sort-indicator" id="si-ai_hsps_score"></span></th>
+            <th onclick="sortBy('hsps_diff')" class="right">Diff<span class="sort-indicator" id="si-hsps_diff"></span></th>
+            <th onclick="sortBy('self_mbti')">Self MBTI<span class="sort-indicator" id="si-self_mbti"></span></th>
+            <th onclick="sortBy('ai_mbti_type')">AI→Subj MBTI<span class="sort-indicator" id="si-ai_mbti_type"></span></th>
+            <th onclick="sortBy('mbti_guess')">Subj→AI MBTI<span class="sort-indicator" id="si-mbti_guess"></span></th>
+            <th>BFI</th>
+            <th onclick="sortBy('status')">Status<span class="sort-indicator" id="si-status"></span></th>
+          </tr>
+        </thead>
+        <tbody id="participants-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: Overview -->
+  <div id="tab-overview" class="tab-panel">
+    <div id="overview-loading" class="loading">Loading overview…</div>
+    <div id="overview-content" style="display:none">
+      <div class="overview-cards">
+        <div class="card">
+          <div class="card-label">Total Participants</div>
+          <div class="card-value" id="ov-total">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Completed</div>
+          <div class="card-value" id="ov-completed">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">High Sensitivity</div>
+          <div class="card-value" id="ov-high">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Low Sensitivity</div>
+          <div class="card-value" id="ov-low">—</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">HSPS Self-Report Distribution</div>
+          <canvas id="chart-hsps" height="180"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">AI HSPS Score by Platform</div>
+          <canvas id="chart-platform" height="180"></canvas>
+        </div>
+      </div>
+
+      <div class="cond-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Condition ID</th>
+              <th>Platform</th>
+              <th>Topic</th>
+              <th class="right">Assigned</th>
+              <th class="right">Completed</th>
+            </tr>
+          </thead>
+          <tbody id="conditions-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Drawer overlay ── -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-header-info">
+      <div class="drawer-pid" id="dr-pid">—</div>
+      <div class="drawer-meta" id="dr-meta">—</div>
+    </div>
+    <button class="drawer-close" onclick="closeDrawer()">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const ADMIN_KEY = "{{ admin_key }}";
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allParticipants = [];
+let filteredParticipants = [];
+let sortCol = "created_at";
+let sortDir = -1; // -1 = desc, 1 = asc
+let selectedId = null;
+let chartHsps = null;
+let chartPlatform = null;
+
+// ── Lookups ───────────────────────────────────────────────────────────────────
+const PLATFORM_SHORT = {
+  "gpt-4o":                  "GPT-4o",
+  "gpt-4o-mini":             "4o-mini",
+  "claude-sonnet-4-6":       "Claude",
+  "gemini-2.0-flash":        "Gemini",
+  "deepseek-chat":           "DeepSeek",
+  "llama-3.3-70b-versatile": "Llama",
+};
+const TOPIC_SHORT = {
+  "social_anxiety":        "Social",
+  "rumination":            "Rum.",
+  "anticipatory_anxiety":  "Anticip.",
+};
+const BFI_DIMS = ["Extraversion", "Agreeableness", "Conscientiousness", "Neuroticism", "Openness"];
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", loadAll);
+
+async function loadAll() {
+  await Promise.all([loadParticipants(), loadOverview()]);
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("active");
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    if (b.textContent.trim().toLowerCase().includes(name === "participants" ? "part" : "over"))
+      b.classList.add("active");
+  });
+}
+
+// ── Load participants ─────────────────────────────────────────────────────────
+async function loadParticipants() {
+  document.getElementById("table-loading").style.display = "block";
+  document.getElementById("participants-table").style.display = "none";
+
+  try {
+    const res = await fetch(`/admin/api/participants?key=${encodeURIComponent(ADMIN_KEY)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    allParticipants = await res.json();
+    applyFilterAndSort();
+    document.getElementById("table-loading").style.display = "none";
+    document.getElementById("participants-table").style.display = "";
+  } catch(e) {
+    document.getElementById("table-loading").innerHTML = `<div class="error-msg">Error loading participants: ${e.message}</div>`;
+  }
+}
+
+// ── Load overview ─────────────────────────────────────────────────────────────
+async function loadOverview() {
+  document.getElementById("overview-loading").style.display = "block";
+  document.getElementById("overview-content").style.display = "none";
+
+  try {
+    const res = await fetch(`/admin/api/overview?key=${encodeURIComponent(ADMIN_KEY)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderOverview(data);
+    document.getElementById("overview-loading").style.display = "none";
+    document.getElementById("overview-content").style.display = "";
+  } catch(e) {
+    document.getElementById("overview-loading").innerHTML = `<div class="error-msg">Error loading overview: ${e.message}</div>`;
+  }
+}
+
+// ── Participant table logic ────────────────────────────────────────────────────
+function onSearch() {
+  applyFilterAndSort();
+}
+
+function applyFilterAndSort() {
+  const q = document.getElementById("search-input").value.trim().toLowerCase();
+  filteredParticipants = allParticipants.filter(p => {
+    if (!q) return true;
+    return (p.prolific_id || "").toLowerCase().includes(q);
+  });
+  sortParticipants();
+  renderTable();
+}
+
+function sortBy(col) {
+  if (sortCol === col) {
+    sortDir = -sortDir;
+  } else {
+    sortCol = col;
+    sortDir = 1;
+  }
+  sortParticipants();
+  renderTable();
+  updateSortIndicators();
+}
+
+function sortParticipants() {
+  filteredParticipants.sort((a, b) => {
+    let va = getSortValue(a, sortCol);
+    let vb = getSortValue(b, sortCol);
+    if (va === null || va === undefined) va = sortDir === 1 ? Infinity : -Infinity;
+    if (vb === null || vb === undefined) vb = sortDir === 1 ? Infinity : -Infinity;
+    if (typeof va === "string" && typeof vb === "string")
+      return sortDir * va.localeCompare(vb);
+    return sortDir * (va < vb ? -1 : va > vb ? 1 : 0);
+  });
+}
+
+function getSortValue(p, col) {
+  switch(col) {
+    case "#":          return p.created_at;
+    case "condition":  return (PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "") + " " + (TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "");
+    case "status":     return statusRank(p);
+    case "created_at": return p.created_at;
+    default:           return p[col];
+  }
+}
+
+function statusRank(p) {
+  if (p.excluded)              return 0;
+  if (p.post_survey_completed) return 4;
+  if (p.chat_completed)        return 3;
+  if (p.survey_completed)      return 2;
+  return 1;
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll(".sort-indicator").forEach(el => el.textContent = "");
+  const el = document.getElementById("si-" + sortCol);
+  if (el) el.textContent = sortDir === 1 ? " ↑" : " ↓";
+  document.querySelectorAll("thead th").forEach(th => th.classList.remove("sort-active"));
+}
+
+function renderTable() {
+  const tbody = document.getElementById("participants-tbody");
+  const label = document.getElementById("count-label");
+  label.textContent = `${filteredParticipants.length} participant${filteredParticipants.length !== 1 ? "s" : ""}`;
+
+  const rows = filteredParticipants.map((p, idx) => {
+    const rowClass = getRowClass(p);
+    const pid = p.prolific_id || "—";
+    const pidShort = pid.length > 12 ? pid.slice(0, 12) + "…" : pid;
+    const condition = formatCondition(p);
+    const selfHSPS = p.hsps_score != null ? p.hsps_score.toFixed(1) : "—";
+    const aiHSPS   = p.ai_hsps_score != null ? p.ai_hsps_score.toFixed(1) : "—";
+    const diffHtml = formatDiff(p.hsps_diff);
+    const selfMBTI = p.self_mbti || "—";
+    const aiMBTI   = p.ai_mbti_type || "—";
+    const guessMBTI= p.mbti_guess || "—";
+    const bfiHtml  = formatBFICell(p.bfi_scores);
+    const statusHtml = formatStatus(p);
+
+    return `<tr class="${rowClass}" onclick="window.location.href='/admin/participant/${p.id}?key='+encodeURIComponent(ADMIN_KEY)" style="cursor:pointer" data-id="${p.id}">
+      <td>${idx + 1}</td>
+      <td class="mono" title="${escHtml(pid)}">${escHtml(pidShort)}</td>
+      <td>${escHtml(condition)}</td>
+      <td class="right">${selfHSPS}</td>
+      <td class="right">${aiHSPS}</td>
+      <td class="right">${diffHtml}</td>
+      <td>${selfMBTI}</td>
+      <td>${aiMBTI}</td>
+      <td>${guessMBTI}</td>
+      <td class="bfi-cell">${bfiHtml}</td>
+      <td>${statusHtml}</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows.join("");
+  updateSortIndicators();
+
+  // Re-highlight selected row
+  if (selectedId) {
+    const sel = tbody.querySelector(`tr[data-id="${selectedId}"]`);
+    if (sel) sel.classList.add("selected");
+  }
+}
+
+function getRowClass(p) {
+  if (p.excluded) return "excluded-row";
+  const diff = p.hsps_diff != null ? Math.abs(p.hsps_diff) : 0;
+  if (diff >= 2.5) return "diff-high";
+  if (diff >= 1.5) return "diff-warn";
+  return "";
+}
+
+function formatCondition(p) {
+  const plat = PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "—";
+  const topic = TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "—";
+  if (p.assigned_platform || p.assigned_topic) return `${plat}×${topic}`;
+  return "—";
+}
+
+function formatDiff(diff) {
+  if (diff == null) return "<span style='color:#94a3b8'>—</span>";
+  const abs = Math.abs(diff);
+  const cls = abs < 1.0 ? "diff-green" : abs < 2.0 ? "diff-amber" : "diff-orange";
+  const sign = diff > 0 ? "+" : "";
+  return `<span class="${cls}">${sign}${diff.toFixed(2)}</span>`;
+}
+
+function formatBFICell(bfi) {
+  if (!bfi) return "—";
+  const dims = [
+    ["E", bfi.extraversion],
+    ["A", bfi.agreeableness],
+    ["C", bfi.conscientiousness],
+    ["N", bfi.neuroticism],
+    ["O", bfi.openness],
+  ];
+  return dims.map(([letter, val]) => {
+    if (val == null) return `${letter}:—`;
+    return `${letter}:${val.toFixed(1)}`;
+  }).join(" ");
+}
+
+function formatStatus(p) {
+  if (p.excluded)              return '<span class="badge badge-screened">Screened out</span>';
+  if (p.post_survey_completed) return '<span class="badge badge-done">Done</span>';
+  if (p.chat_completed)        return '<span class="badge badge-chatted">Chatted</span>';
+  if (p.survey_completed)      return '<span class="badge badge-surveyed">Surveyed</span>';
+  return '<span class="badge badge-surveyed">Started</span>';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── Drawer / Profile panel ────────────────────────────────────────────────────
+function openDrawer(id) {
+  const p = allParticipants.find(x => x.id === id);
+  if (!p) return;
+
+  selectedId = id;
+
+  // Highlight selected row
+  document.querySelectorAll("#participants-tbody tr").forEach(tr => tr.classList.remove("selected"));
+  const selRow = document.querySelector(`tr[data-id="${id}"]`);
+  if (selRow) selRow.classList.add("selected");
+
+  // Header
+  document.getElementById("dr-pid").textContent = p.prolific_id || id;
+  const condStr = formatCondition(p);
+  const statusHtml = formatStatus(p);
+  const createdStr = p.created_at ? new Date(p.created_at).toLocaleString() : "—";
+  const completedStr = p.survey_completed_at ? new Date(p.survey_completed_at).toLocaleString() : "—";
+  document.getElementById("dr-meta").innerHTML =
+    `${escHtml(condStr)} &nbsp;${statusHtml}<br>Created: ${createdStr} &nbsp; Completed: ${completedStr}`;
+
+  // Body
+  document.getElementById("drawer-body").innerHTML = buildDrawerBody(p);
+
+  document.getElementById("drawer-overlay").classList.add("open");
+  document.getElementById("drawer").classList.add("open");
+}
+
+function closeDrawer() {
+  document.getElementById("drawer-overlay").classList.remove("open");
+  document.getElementById("drawer").classList.remove("open");
+}
+
+function buildDrawerBody(p) {
+  let html = "";
+
+  // ── Self-Report ──
+  html += `<div class="drawer-section">
+    <div class="drawer-section-title">Self-Report</div>`;
+
+  const hspsScore = p.hsps_score != null ? p.hsps_score.toFixed(1) : "—";
+  const hspsSens  = p.hsps_score != null ? (p.hsps_score >= 4.0 ? " · High Sensitivity" : " · Low Sensitivity") : "";
+  html += `<div class="detail-row"><span class="detail-label">HSPS Score:</span><span class="detail-value">${hspsScore}${hspsSens}</span></div>`;
+
+  // HSPS 18-item grid (self only in self-report section)
+  if (p.hsps_responses) {
+    html += `<div style="font-size:11px;color:#64748b;margin:8px 0 4px;">HSPS Items (self-report)</div>`;
+    html += `<div class="hsps-grid">`;
+    for (let i = 1; i <= 18; i++) {
+      const selfVal = p.hsps_responses[`hsps_${i}`];
+      html += `<div class="hsps-cell">
+        <div class="hsps-cell-label">Q${i}</div>
+        <div class="hsps-cell-vals">
+          <span class="hsps-cell-self">${selfVal != null ? selfVal : "—"}</span>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // BFI
+  if (p.bfi_scores) {
+    html += `<div style="margin-top:12px;font-size:11px;color:#64748b;margin-bottom:6px;">BFI-10</div>`;
+    const bfiMap = [
+      ["Extraversion",       p.bfi_scores.extraversion],
+      ["Agreeableness",      p.bfi_scores.agreeableness],
+      ["Conscientiousness",  p.bfi_scores.conscientiousness],
+      ["Neuroticism",        p.bfi_scores.neuroticism],
+      ["Openness",           p.bfi_scores.openness],
+    ];
+    bfiMap.forEach(([dim, val]) => {
+      const pct = val != null ? ((val - 1) / 4 * 100).toFixed(0) : 0;
+      const fillClass = val == null ? "" : val >= 3.5 ? "high" : "low";
+      html += `<div class="bfi-row">
+        <span class="bfi-dim-label">${dim}</span>
+        <span class="bfi-score-val">${val != null ? val.toFixed(1) : "—"}</span>
+        <div class="bfi-bar-track"><div class="bfi-bar-fill ${fillClass}" style="width:${pct}%"></div></div>
+      </div>`;
+    });
+  }
+
+  const selfMBTI = p.self_mbti || "—";
+  html += `<div class="detail-row" style="margin-top:10px;"><span class="detail-label">Self MBTI:</span><span class="detail-value">${selfMBTI}</span></div>`;
+
+  html += `</div>`; // end self-report section
+
+  // ── Participant → AI Perception ──
+  html += `<div class="drawer-section">
+    <div class="drawer-section-title">Participant → AI Perception</div>
+    <div class="detail-row"><span class="detail-label">Guess of AI's MBTI:</span><span class="detail-value">${escHtml(p.mbti_guess || "—")}</span></div>
+    <div style="font-size:11px;color:#94a3b8;margin-top:3px;">(from post-survey)</div>
+  </div>`;
+
+  // ── AI Assessment ──
+  html += `<div class="drawer-section">
+    <div class="drawer-section-title">AI's Assessment of Participant</div>`;
+
+  const aiHSPSScore = p.ai_hsps_score != null ? p.ai_hsps_score.toFixed(1) : "—";
+  const diffStr = p.hsps_diff != null
+    ? ` <span style="color:${Math.abs(p.hsps_diff) < 1 ? "#16a34a" : Math.abs(p.hsps_diff) < 2 ? "#d97706" : "#ea580c"}">(diff: ${p.hsps_diff > 0 ? "+" : ""}${p.hsps_diff.toFixed(2)})</span>`
+    : "";
+  html += `<div class="detail-row"><span class="detail-label">AI HSPS Score:</span><span class="detail-value">${aiHSPSScore}${diffStr}</span></div>`;
+
+  // 18-item diff grid
+  if (p.hsps_responses && p.ai_hsps_responses) {
+    html += `<div style="font-size:11px;color:#64748b;margin:8px 0 4px;">HSPS Items (self vs AI)</div>`;
+    html += `<div class="hsps-grid">`;
+    for (let i = 1; i <= 18; i++) {
+      const selfVal = p.hsps_responses[`hsps_${i}`];
+      const aiVal   = p.ai_hsps_responses[`hsps_${i}`];
+      let diffVal = null;
+      let diffCls = "hd-zero";
+      if (selfVal != null && aiVal != null) {
+        diffVal = aiVal - selfVal;
+        const absDiff = Math.abs(diffVal);
+        diffCls = absDiff === 0 ? "hd-zero" : absDiff <= 1 ? "hd-small" : absDiff <= 2 ? "hd-medium" : "hd-large";
+      }
+      const diffDisp = diffVal != null ? (diffVal > 0 ? "+" : "") + diffVal : "—";
+      html += `<div class="hsps-cell">
+        <div class="hsps-cell-label">Q${i}</div>
+        <div class="hsps-cell-vals">
+          <span class="hsps-cell-self" title="Self">${selfVal != null ? selfVal : "—"}</span>
+          <span style="color:#cbd5e1">|</span>
+          <span class="hsps-cell-ai" title="AI">${aiVal != null ? aiVal : "—"}</span>
+          <span class="hsps-cell-diff ${diffCls}" title="Diff">${diffDisp}</span>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  } else if (p.ai_hsps_responses) {
+    html += `<div style="font-size:11px;color:#64748b;margin:8px 0 4px;">AI HSPS Items</div>`;
+    html += `<div class="hsps-grid">`;
+    for (let i = 1; i <= 18; i++) {
+      const aiVal = p.ai_hsps_responses[`hsps_${i}`];
+      html += `<div class="hsps-cell">
+        <div class="hsps-cell-label">Q${i}</div>
+        <div class="hsps-cell-vals"><span class="hsps-cell-ai">${aiVal != null ? aiVal : "—"}</span></div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  const aiMBTI = p.ai_mbti_type || "—";
+  const rationale = p.ai_mbti_rationale ? `<div style="font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:8px 10px;margin-top:6px;line-height:1.5;white-space:pre-wrap;">${escHtml(p.ai_mbti_rationale)}</div>` : "";
+  html += `<div class="detail-row" style="margin-top:10px;"><span class="detail-label">AI MBTI Prediction:</span><span class="detail-value">${escHtml(aiMBTI)}</span></div>`;
+  if (rationale) html += `<div class="detail-label" style="font-size:11.5px;margin-top:4px;">Rationale:</div>${rationale}`;
+
+  html += `</div>`; // end AI section
+
+  return html;
+}
+
+// ── Overview rendering ────────────────────────────────────────────────────────
+function renderOverview(data) {
+  const totalParts = allParticipants.filter(p => !p.excluded).length;
+  document.getElementById("ov-total").textContent     = totalParts;
+  document.getElementById("ov-completed").textContent = data.total_completed;
+  document.getElementById("ov-high").textContent      = data.hsps_high;
+  document.getElementById("ov-low").textContent       = data.hsps_low;
+
+  // HSPS distribution chart
+  if (chartHsps) chartHsps.destroy();
+  const ctxHsps = document.getElementById("chart-hsps").getContext("2d");
+  chartHsps = new Chart(ctxHsps, {
+    type: "bar",
+    data: {
+      labels: ["High Sensitivity (≥4.0)", "Low Sensitivity (<4.0)"],
+      datasets: [{
+        data: [data.hsps_high, data.hsps_low],
+        backgroundColor: ["#3b82f6", "#94a3b8"],
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // Platform AI avg chart
+  if (chartPlatform) chartPlatform.destroy();
+  const platKeys   = Object.keys(data.platform_ai_avg);
+  const platLabels = platKeys.map(k => PLATFORM_SHORT[k] || k);
+  const platVals   = platKeys.map(k => data.platform_ai_avg[k]);
+  const ctxPlat = document.getElementById("chart-platform").getContext("2d");
+  chartPlatform = new Chart(ctxPlat, {
+    type: "bar",
+    data: {
+      labels: platLabels,
+      datasets: [{
+        label: "Avg AI HSPS",
+        data: platVals,
+        backgroundColor: "#6366f1",
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: false, min: 1, max: 7 }
+      }
+    }
+  });
+
+  // Conditions table
+  const tbody = document.getElementById("conditions-tbody");
+  tbody.innerHTML = (data.conditions || []).map(c => {
+    const platName = PLATFORM_SHORT[c.platform] || c.platform || "—";
+    const topicName = TOPIC_SHORT[c.topic] || c.topic || "—";
+    return `<tr>
+      <td>${c.condition_id}</td>
+      <td>${escHtml(platName)}</td>
+      <td>${escHtml(topicName)}</td>
+      <td class="right">${c.assigned_count}</td>
+      <td class="right">${c.completed_count}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ── Initial sort indicator ────────────────────────────────────────────────────
+updateSortIndicators();
+</script>
+</body>
+</html>

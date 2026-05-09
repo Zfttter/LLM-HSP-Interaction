@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% block title %}Screening Survey — HSP Study{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h1>A few questions before we begin</h1>
+  <p class="lead">There are no right or wrong answers — just notice what feels true for you. This takes about 5–8 minutes.</p>
+
+  <!-- ── Data quality notice ─────────────────────────────────────────────── -->
+  <div class="data-quality-notice">
+    <strong>&#9888; Please answer carefully.</strong>
+    Our system monitors response quality. Randomly filled or inattentive responses
+    may result in your submission being rejected and compensation withheld.
+  </div>
+
+  <form method="POST" action="/api/survey" id="surveyForm">
+
+    <!-- ── Section 1: HSPS-18 ─────────────────────────────────────────── -->
+    <section class="survey-section">
+      <div class="section-eyebrow">Part 1 of 3 &middot; Personal Sensitivity</div>
+      <p class="section-italic">For each item, notice what feels true for you — from <em>not at all</em> to <em>extremely</em>.</p>
+
+      {% for item in hsps_items %}
+      {% set item_num = loop.index %}
+      <div class="likert-row">
+        <div class="likert-question">
+          <span class="q-num">{{ item_num }}.</span> {{ item }}
+        </div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Not at all</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="hsps_{{ item_num }}" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Extremely</span>
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <!-- ── Section 2: BFI-44 ──────────────────────────────────────────── -->
+    <section class="survey-section">
+      <div class="section-eyebrow">Part 2 of 3 &middot; Personality</div>
+      <p class="section-italic">I see myself as someone who… — mark where you naturally land, from <em>disagree</em> to <em>agree</em>.</p>
+
+      {% for item, code in bfi_items %}
+      {% set item_num = loop.index %}
+      <div class="likert-row">
+        <div class="likert-question">
+          <span class="q-num">{{ item_num }}.</span> &hellip;{{ item }}
+        </div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 6) %}
+            <label class="likert-option">
+              <input type="radio" name="bfi_{{ item_num }}" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Agree</span>
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <!-- ── Section 3: Demographics ────────────────────────────────────── -->
+    <section class="survey-section">
+      <div class="section-eyebrow">Part 3 of 3 &middot; Background</div>
+      <p class="section-italic">A few brief questions about you.</p>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label for="age">1. What is your age?</label>
+        <input type="number" id="age" name="age" min="1" max="120"
+               class="form-control form-control-sm" required placeholder="e.g. 24" />
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label>2. What is your gender?</label>
+        <div class="radio-group">
+          <label class="radio-inline"><input type="radio" name="gender" value="man" required /> Man</label>
+          <label class="radio-inline"><input type="radio" name="gender" value="woman" /> Woman</label>
+          <label class="radio-inline"><input type="radio" name="gender" value="non-binary" /> Non-binary</label>
+          <label class="radio-inline"><input type="radio" name="gender" value="prefer_not_to_say" /> Prefer not to say</label>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label>3. Is English your native language?</label>
+        <div class="radio-group">
+          <label class="radio-inline"><input type="radio" name="native_english" value="yes" required /> Yes</label>
+          <label class="radio-inline"><input type="radio" name="native_english" value="no" /> No</label>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label>4. How often do you use AI chatbots (e.g., ChatGPT) <strong>for emotional conversations or support</strong> (e.g., venting, seeking comfort, discussing personal problems)?</label>
+        <div class="radio-group vertical">
+          <label class="radio-inline"><input type="radio" name="ai_usage" value="never" required /> Never</label>
+          <label class="radio-inline"><input type="radio" name="ai_usage" value="rarely" /> Rarely</label>
+          <label class="radio-inline"><input type="radio" name="ai_usage" value="sometimes" /> Sometimes</label>
+          <label class="radio-inline"><input type="radio" name="ai_usage" value="often" /> Often</label>
+          <label class="radio-inline"><input type="radio" name="ai_usage" value="very_often" /> Very often</label>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label for="country">5. What is your country of residence?</label>
+        <select id="country" name="country" class="form-control form-control-sm" required>
+          <option value="" disabled selected>— Please select —</option>
+          <optgroup label="Common">
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="United States">United States</option>
+            <option value="Canada">Canada</option>
+            <option value="Australia">Australia</option>
+            <option value="New Zealand">New Zealand</option>
+          </optgroup>
+          <optgroup label="Europe">
+            <option value="Austria">Austria</option>
+            <option value="Belgium">Belgium</option>
+            <option value="Bulgaria">Bulgaria</option>
+            <option value="Croatia">Croatia</option>
+            <option value="Cyprus">Cyprus</option>
+            <option value="Czech Republic">Czech Republic</option>
+            <option value="Denmark">Denmark</option>
+            <option value="Estonia">Estonia</option>
+            <option value="Finland">Finland</option>
+            <option value="France">France</option>
+            <option value="Germany">Germany</option>
+            <option value="Greece">Greece</option>
+            <option value="Hungary">Hungary</option>
+            <option value="Iceland">Iceland</option>
+            <option value="Ireland">Ireland</option>
+            <option value="Italy">Italy</option>
+            <option value="Latvia">Latvia</option>
+            <option value="Lithuania">Lithuania</option>
+            <option value="Luxembourg">Luxembourg</option>
+            <option value="Malta">Malta</option>
+            <option value="Netherlands">Netherlands</option>
+            <option value="Norway">Norway</option>
+            <option value="Poland">Poland</option>
+            <option value="Portugal">Portugal</option>
+            <option value="Romania">Romania</option>
+            <option value="Slovakia">Slovakia</option>
+            <option value="Slovenia">Slovenia</option>
+            <option value="Spain">Spain</option>
+            <option value="Sweden">Sweden</option>
+            <option value="Switzerland">Switzerland</option>
+            <option value="Ukraine">Ukraine</option>
+          </optgroup>
+          <optgroup label="Asia">
+            <option value="Bangladesh">Bangladesh</option>
+            <option value="China">China</option>
+            <option value="Hong Kong">Hong Kong</option>
+            <option value="India">India</option>
+            <option value="Indonesia">Indonesia</option>
+            <option value="Japan">Japan</option>
+            <option value="Malaysia">Malaysia</option>
+            <option value="Pakistan">Pakistan</option>
+            <option value="Philippines">Philippines</option>
+            <option value="Singapore">Singapore</option>
+            <option value="South Korea">South Korea</option>
+            <option value="Sri Lanka">Sri Lanka</option>
+            <option value="Taiwan">Taiwan</option>
+            <option value="Thailand">Thailand</option>
+            <option value="Vietnam">Vietnam</option>
+          </optgroup>
+          <optgroup label="Middle East &amp; Africa">
+            <option value="Egypt">Egypt</option>
+            <option value="Israel">Israel</option>
+            <option value="Kenya">Kenya</option>
+            <option value="Nigeria">Nigeria</option>
+            <option value="Saudi Arabia">Saudi Arabia</option>
+            <option value="South Africa">South Africa</option>
+            <option value="Turkey">Turkey</option>
+            <option value="United Arab Emirates">United Arab Emirates</option>
+          </optgroup>
+          <optgroup label="Americas">
+            <option value="Argentina">Argentina</option>
+            <option value="Brazil">Brazil</option>
+            <option value="Chile">Chile</option>
+            <option value="Colombia">Colombia</option>
+            <option value="Mexico">Mexico</option>
+            <option value="Peru">Peru</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="Other">Other</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label for="race">6. What is your racial or ethnic background?</label>
+        <select id="race" name="race" class="form-control form-control-sm" required>
+          <option value="" disabled selected>— Please select —</option>
+          <option value="white">White / Caucasian</option>
+          <option value="black">Black or African American</option>
+          <option value="asian">Asian / Asian American</option>
+          <option value="hispanic">Hispanic or Latino</option>
+          <option value="native_american">Native American or Alaska Native</option>
+          <option value="pacific_islander">Native Hawaiian or Pacific Islander</option>
+          <option value="middle_eastern">Middle Eastern or North African</option>
+          <option value="multiracial">Multiracial / Mixed Race</option>
+          <option value="other">Other</option>
+          <option value="prefer_not_to_say">Prefer not to say</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label for="self_mbti">7. What is your MBTI personality type? <span class="optional-label">(optional — leave blank if unsure)</span></label>
+        <div class="mbti-guide">
+          <p class="mbti-guide-intro">MBTI describes personality across four dimensions. Pick one letter from each pair to form a 4-letter type (e.g. <em>INFJ</em>, <em>ENFP</em>, <em>ISTP</em>):</p>
+          <div class="mbti-dims">
+            <div class="mbti-dim">
+              <span class="mbti-letters"><strong>E</strong> vs <strong>I</strong></span>
+              <span class="mbti-desc"><strong>Extraversion</strong> (energetic, outgoing, gains energy from others) vs <strong>Introversion</strong> (reserved, reflective, gains energy from solitude)</span>
+            </div>
+            <div class="mbti-dim">
+              <span class="mbti-letters"><strong>S</strong> vs <strong>N</strong></span>
+              <span class="mbti-desc"><strong>Sensing</strong> (practical, detail-focused, trusts facts) vs <strong>iNtuition</strong> (abstract, big-picture, drawn to patterns and possibilities)</span>
+            </div>
+            <div class="mbti-dim">
+              <span class="mbti-letters"><strong>T</strong> vs <strong>F</strong></span>
+              <span class="mbti-desc"><strong>Thinking</strong> (logical, objective, prioritises consistency) vs <strong>Feeling</strong> (empathetic, values-driven, prioritises harmony)</span>
+            </div>
+            <div class="mbti-dim">
+              <span class="mbti-letters"><strong>J</strong> vs <strong>P</strong></span>
+              <span class="mbti-desc"><strong>Judging</strong> (structured, decisive, prefers plans) vs <strong>Perceiving</strong> (flexible, spontaneous, prefers staying open)</span>
+            </div>
+          </div>
+        </div>
+        <input
+          type="text"
+          id="self_mbti"
+          name="self_mbti"
+          class="form-control form-control-sm"
+          maxlength="10"
+          placeholder="e.g. INFJ"
+          style="max-width: 160px; text-transform: uppercase;"
+        />
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary btn-large" id="submitBtn">
+        Continue &rarr;
+      </button>
+      <p class="submit-note" id="submitNote">Please answer all questions before continuing.</p>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const form       = document.getElementById("surveyForm");
+const submitBtn  = document.getElementById("submitBtn");
+const submitNote = document.getElementById("submitNote");
+
+// ── Check completion ──────────────────────────────────────────────────────
+// Iterates elements directly and reads .checked / .value — avoids
+// querySelector(":checked") which can miss hidden radio inputs.
+
+function getStatus() {
+  // Group all radio inputs by name; track whether any in each group is checked
+  const groups = {};
+  form.querySelectorAll("input[type='radio']").forEach(function (el) {
+    if (!(el.name in groups)) {
+      groups[el.name] = { anyChecked: false, hasRequired: false, firstEl: el };
+    }
+    if (el.checked)  groups[el.name].anyChecked  = true;
+    if (el.required) groups[el.name].hasRequired = true;
+  });
+
+  let remaining = 0;
+  let firstMissing = null;
+
+  Object.values(groups).forEach(function (g) {
+    if (g.hasRequired && !g.anyChecked) {
+      remaining++;
+      if (!firstMissing) firstMissing = g.firstEl;
+    }
+  });
+
+  form.querySelectorAll("input[type='number'][required], input[type='text'][required]").forEach(function (el) {
+    if (!el.value.trim()) {
+      remaining++;
+      if (!firstMissing) firstMissing = el;
+    }
+  });
+
+  form.querySelectorAll("select[required]").forEach(function (sel) {
+    if (!sel.value) {
+      remaining++;
+      if (!firstMissing) firstMissing = sel;
+    }
+  });
+
+  return { remaining: remaining, firstMissing: firstMissing };
+}
+
+// ── Update button + note ──────────────────────────────────────────────────
+
+function updateUI() {
+  const { remaining } = getStatus();
+  if (remaining === 0) {
+    submitBtn.classList.remove("btn-incomplete");
+    submitNote.textContent = "";
+  } else {
+    submitBtn.classList.add("btn-incomplete");
+    submitNote.textContent =
+      remaining === 1
+        ? "1 question still needs an answer — click Continue to find it."
+        : remaining + " questions still need an answer — click Continue to find the first one.";
+  }
+}
+
+// ── Button click ──────────────────────────────────────────────────────────
+
+submitBtn.addEventListener("click", function () {
+  const { remaining, firstMissing } = getStatus();
+  if (remaining === 0) { form.submit(); return; }
+
+  const target = firstMissing.closest(".likert-row, .form-group, .radio-group") || firstMissing;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.classList.add("unanswered-flash");
+  setTimeout(function () { target.classList.remove("unanswered-flash"); }, 1500);
+});
+
+// ── Live updates ──────────────────────────────────────────────────────────
+
+form.addEventListener("change", updateUI);
+form.querySelectorAll("input[type='number'], input[type='text']").forEach(function (el) {
+  el.addEventListener("input", updateUI);
+});
+
+updateUI();
+</script>
+{% endblock %}

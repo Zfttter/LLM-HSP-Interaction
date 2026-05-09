@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant — HSP Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  background: #f1f5f9;
+  color: #1e293b;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.header {
+  background: #1e293b;
+  color: #fff;
+  padding: 0 16px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.back-btn {
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid #475569;
+  border-radius: 5px;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.back-btn:hover { color: #e2e8f0; border-color: #94a3b8; }
+.header-info { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; overflow: hidden; }
+.header-pid { font-family: "SF Mono", ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #f1f5f9; white-space: nowrap; }
+.header-condition { font-size: 12px; color: #94a3b8; white-space: nowrap; }
+.header-nav { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.nav-counter { font-size: 11px; color: #64748b; min-width: 60px; text-align: center; }
+.nav-btn {
+  background: #334155;
+  border: 1px solid #475569;
+  color: #cbd5e1;
+  padding: 5px 11px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.nav-btn:hover:not(:disabled) { background: #475569; color: #fff; }
+.nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Two-column layout ── */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ── Panels ── */
+.left-panel, .right-panel {
+  overflow-y: auto;
+  padding: 18px;
+}
+.left-panel {
+  border-right: 1px solid #e2e8f0;
+  background: #fff;
+}
+.right-panel {
+  background: #f8fafc;
+}
+
+/* ── Section blocks ── */
+.section {
+  margin-bottom: 20px;
+}
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #94a3b8;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+}
+
+/* ── Detail rows ── */
+.drow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 5px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.dlabel { color: #64748b; flex-shrink: 0; min-width: 120px; }
+.dvalue { color: #1e293b; word-break: break-word; }
+.dvalue.mono { font-family: "SF Mono", ui-monospace, monospace; font-size: 12px; }
+
+/* ── Status / level badges ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-done    { background: #dcfce7; color: #15803d; }
+.badge-chatted { background: #dbeafe; color: #1d4ed8; }
+.badge-surveyed{ background: #f1f5f9; color: #64748b; }
+.badge-screened{ background: #fee2e2; color: #b91c1c; }
+.badge-high    { background: #fef9c3; color: #a16207; }
+.badge-low     { background: #ede9fe; color: #6d28d9; }
+
+/* ── Score big display ── */
+.score-big {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+.score-sub { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+
+/* ── HSPS item grid ── */
+.hsps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+.hcell {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+.hcell-label { font-weight: 600; color: #475569; margin-bottom: 2px; font-size: 10px; }
+.hcell-vals { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.hv-self  { color: #475569; }
+.hv-ai    { color: #3b82f6; }
+.hv-diff  { font-weight: 700; font-size: 10.5px; }
+.hd-0  { color: #94a3b8; }
+.hd-s  { color: #16a34a; }
+.hd-m  { color: #d97706; }
+.hd-l  { color: #ea580c; }
+
+/* ── BFI bars ── */
+.bfi-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+.bfi-dim { width: 130px; color: #475569; flex-shrink: 0; }
+.bfi-val { width: 26px; text-align: right; font-weight: 600; color: #1e293b; flex-shrink: 0; }
+.bfi-track {
+  flex: 1;
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.bfi-fill { height: 100%; border-radius: 3px; background: #94a3b8; }
+.bfi-fill.hi { background: #3b82f6; }
+.bfi-fill.lo { background: #f59e0b; }
+
+/* ── Post-survey items ── */
+.ps-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.ps-label { flex: 1; color: #475569; }
+.ps-val {
+  font-weight: 600;
+  color: #1e293b;
+  min-width: 18px;
+  text-align: right;
+}
+.ps-dots {
+  display: flex;
+  gap: 2px;
+}
+.ps-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e2e8f0;
+}
+.ps-dot.on { background: #3b82f6; }
+.ps-dot.on-ios { background: #8b5cf6; }
+
+/* ── Rationale box ── */
+.rationale-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #3b82f6;
+  border-radius: 0 5px 5px 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.55;
+  margin-top: 6px;
+  white-space: pre-wrap;
+}
+
+/* ── Conversation rounds ── */
+.conv-round {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.conv-round-header {
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.conv-turn {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.conv-turn:last-child { border-bottom: none; }
+.conv-speaker {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.spk-user  { color: #475569; }
+.spk-ai    { color: #2563eb; }
+.conv-meta { font-size: 10.5px; color: #94a3b8; font-weight: 400; margin-left: 4px; }
+.conv-text {
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.turn-user { background: #fafafa; }
+.turn-ai   { background: #f0f7ff; }
+
+/* ── Diff inline ── */
+.diff-green  { color: #16a34a; font-weight: 600; }
+.diff-amber  { color: #d97706; font-weight: 600; }
+.diff-orange { color: #ea580c; font-weight: 600; }
+
+/* ── Loading ── */
+.loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; }
+.error-msg { color: #dc2626; padding: 20px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a href="/admin?key={{ admin_key }}" class="back-btn">← All Participants</a>
+  <div class="header-info">
+    <span class="header-pid" id="h-pid">Loading…</span>
+    <span class="header-condition" id="h-cond"></span>
+    <span id="h-status"></span>
+  </div>
+  <div class="header-nav">
+    <button class="nav-btn" id="prev-btn" disabled onclick="navigate('prev')">← Prev</button>
+    <span class="nav-counter" id="nav-counter">— / —</span>
+    <button class="nav-btn" id="next-btn" disabled onclick="navigate('next')">Next →</button>
+  </div>
+</header>
+
+<div class="detail-layout">
+  <div class="left-panel" id="left-panel"><div class="loading">Loading…</div></div>
+  <div class="right-panel" id="right-panel"><div class="loading">Loading…</div></div>
+</div>
+
+<script>
+const PARTICIPANT_ID = "{{ participant_id }}";
+const ADMIN_KEY      = "{{ admin_key }}";
+
+const PLATFORM_SHORT = {
+  "gpt-4o": "GPT-4o", "gpt-4o-mini": "4o-mini", "claude-sonnet-4-6": "Claude",
+  "gemini-2.0-flash": "Gemini", "deepseek-chat": "DeepSeek",
+  "llama-3.3-70b-versatile": "Llama",
+};
+const TOPIC_SHORT = {
+  "social_anxiety": "Social Anxiety", "rumination": "Rumination",
+  "anticipatory_anxiety": "Anticipatory Anxiety",
+};
+
+let pData = null;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function load() {
+  try {
+    const res = await fetch(`/admin/api/participant/${PARTICIPANT_ID}?key=${encodeURIComponent(ADMIN_KEY)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    pData = await res.json();
+    renderHeader(pData);
+    renderLeft(pData);
+    renderRight(pData);
+  } catch(e) {
+    document.getElementById("left-panel").innerHTML = `<div class="error-msg">Error: ${e.message}</div>`;
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function navigate(dir) {
+  if (!pData) return;
+  const id = dir === "prev" ? pData.prev_id : pData.next_id;
+  if (id) window.location.href = `/admin/participant/${id}?key=${encodeURIComponent(ADMIN_KEY)}`;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+function renderHeader(p) {
+  document.getElementById("h-pid").textContent = p.prolific_id || p.id;
+  const plat  = PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "—";
+  const topic = TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "—";
+  document.getElementById("h-cond").textContent = p.assigned_platform ? `${plat} × ${topic}` : "";
+  document.getElementById("h-status").innerHTML = statusBadge(p);
+
+  const counter = document.getElementById("nav-counter");
+  counter.textContent = (p.current_index && p.total_count) ? `${p.current_index} / ${p.total_count}` : "";
+
+  const prev = document.getElementById("prev-btn");
+  const next = document.getElementById("next-btn");
+  prev.disabled = !p.prev_id;
+  next.disabled = !p.next_id;
+}
+
+// ── Left panel ────────────────────────────────────────────────────────────────
+function renderLeft(p) {
+  let h = "";
+
+  // ── Demographics ──────────────────────────────────────────────────────────
+  h += section("Demographics", [
+    drow("Prolific ID",    `<span class="dvalue mono">${esc(p.prolific_id || "—")}</span>`),
+    drow("Platform",       esc(PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "—")),
+    drow("Topic",          esc(TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "—")),
+    drow("Status",         statusBadge(p)),
+    drow("Created",        fmtDate(p.created_at)),
+    drow("Completed",      fmtDate(p.post_survey?.completed_at)),
+    "<hr style='border:none;border-top:1px solid #f1f5f9;margin:6px 0'>",
+    drow("Age",            p.age || "—"),
+    drow("Gender",         esc(p.gender || "—")),
+    drow("Country",        esc(p.country || "—")),
+    drow("Native English", p.native_english === true ? "Yes" : p.native_english === false ? "No" : "—"),
+    drow("Ethnicity",       esc(p.race || "—")),
+    drow("AI Usage",       esc(p.ai_usage_frequency || "—")),
+    drow("Self MBTI",      p.self_mbti ? `<strong>${esc(p.self_mbti)}</strong>` : "—"),
+  ].join(""));
+
+  // ── HSPS ──────────────────────────────────────────────────────────────────
+  const selfScore = p.hsps_score;
+  const aiScore   = p.ai_hsps_score;
+  const diff      = p.hsps_diff;
+  const diffHtml  = diff != null ? ` <span class="${diffCls(diff)}">(AI diff: ${diff > 0 ? "+" : ""}${diff.toFixed(2)})</span>` : "";
+
+  let hspsInner = "";
+  if (selfScore != null) {
+    const lev = selfScore >= 4.0 ? "High Sensitivity" : "Low Sensitivity";
+    const levBadge = selfScore >= 4.0
+      ? `<span class="badge badge-high">High</span>`
+      : `<span class="badge badge-low">Low</span>`;
+    hspsInner += `<div class="score-big">${selfScore.toFixed(2)} ${levBadge}</div>`;
+  }
+  if (aiScore != null) {
+    hspsInner += `<div class="score-sub">AI HSPS: <strong>${aiScore.toFixed(2)}</strong>${diffHtml}</div>`;
+  }
+
+  // 18-item grid
+  const hr = p.hsps_responses || {};
+  const ar = p.ai_hsps_responses || {};
+  const hasItems = Object.keys(hr).length > 0;
+  if (hasItems) {
+    hspsInner += `<div style="font-size:10px;color:#94a3b8;margin:8px 0 3px;">
+      <span style="color:#475569">●</span> Self &nbsp;
+      <span style="color:#3b82f6">●</span> AI &nbsp;
+      <span style="color:#64748b">Δ</span> Diff
+    </div><div class="hsps-grid">`;
+    for (let i = 1; i <= 18; i++) {
+      const k = `hsps_${i}`;
+      const sv = hr[k]; const av = ar[k];
+      const dv = (sv != null && av != null) ? (av - sv) : null;
+      const dc = dv == null ? "" : Math.abs(dv) === 0 ? "hd-0" : Math.abs(dv) <= 1 ? "hd-s" : Math.abs(dv) <= 2 ? "hd-m" : "hd-l";
+      const ds = dv == null ? "" : (dv > 0 ? "+" : "") + dv;
+      hspsInner += `<div class="hcell">
+        <div class="hcell-label">Q${i}</div>
+        <div class="hcell-vals">
+          <span class="hv-self">${sv != null ? sv : "—"}</span>
+          ${av != null ? `<span style="color:#cbd5e1;font-size:9px">|</span><span class="hv-ai">${av}</span>` : ""}
+          ${dv != null ? `<span class="hv-diff ${dc}">${ds}</span>` : ""}
+        </div>
+      </div>`;
+    }
+    hspsInner += `</div>`;
+  }
+
+  h += section("HSPS-18", hspsInner);
+
+  // ── BFI-10 ────────────────────────────────────────────────────────────────
+  const bfi = p.bfi_scores || {};
+  const bfiDims = [
+    ["Extraversion",      bfi.extraversion],
+    ["Agreeableness",     bfi.agreeableness],
+    ["Conscientiousness", bfi.conscientiousness],
+    ["Neuroticism",       bfi.neuroticism],
+    ["Openness",          bfi.openness],
+  ];
+  let bfiInner = bfiDims.map(([dim, val]) => {
+    const pct = val != null ? ((val - 1) / 4 * 100).toFixed(0) : 0;
+    const fc = val == null ? "" : val >= 3.5 ? "hi" : "lo";
+    return `<div class="bfi-row">
+      <span class="bfi-dim">${dim}</span>
+      <span class="bfi-val">${val != null ? val.toFixed(1) : "—"}</span>
+      <div class="bfi-track"><div class="bfi-fill ${fc}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
+  h += section("BFI-10", bfiInner);
+
+  // ── MBTI ─────────────────────────────────────────────────────────────────
+  let mbtiInner = "";
+  mbtiInner += drow("Self MBTI", p.self_mbti ? `<strong>${esc(p.self_mbti)}</strong>` : "—");
+  mbtiInner += drow("AI Prediction", p.ai_mbti_type ? `<strong>${esc(p.ai_mbti_type)}</strong>` : "—");
+  if (p.ai_mbti_rationale) {
+    mbtiInner += `<div class="rationale-box">${esc(p.ai_mbti_rationale)}</div>`;
+  }
+  mbtiInner += drow("Participant's AI MBTI guess", p.post_survey?.mbti_guess
+    ? `<strong>${esc(p.post_survey.mbti_guess)}</strong>` : "—");
+  h += section("MBTI", mbtiInner);
+
+  // ── Post-Survey ───────────────────────────────────────────────────────────
+  const ps = p.post_survey || {};
+  const psGroups = [
+    { title: "A — Overall", max: 7, fields: [
+      ["general_empathy",      "General empathy"],
+      ["satisfaction",         "Satisfaction"],
+      ["trust",                "Trust"],
+      ["conversation_quality", "Conversation quality"],
+    ]},
+    { title: "B — AI Engagement", max: 7, fields: [
+      ["affective_empathy_1",     "Affective empathy (1)"],
+      ["affective_empathy_2",     "Affective empathy (2)"],
+      ["cognitive_empathy",       "Cognitive empathy"],
+      ["associative_empathy",     "Associative empathy"],
+      ["emotional_responsiveness","Emotional responsiveness"],
+      ["empathic_accuracy",       "Empathic accuracy"],
+      ["implicit_understanding",  "Implicit understanding"],
+    ]},
+    { title: "C — Closeness & Emotion", max: 7, fields: [
+      ["closeness_ios",    "Closeness (IOS, 1–7)"],
+      ["emotional_relief", "Emotional relief"],
+    ]},
+    { title: "D — Authenticity", max: 7, fields: [
+      ["perceived_sycophancy", "Perceived sycophancy"],
+    ]},
+  ];
+
+  let psInner = "";
+  if (Object.keys(ps).length === 0) {
+    psInner = `<span style="color:#94a3b8;font-size:12px">Not yet completed</span>`;
+  } else {
+    psGroups.forEach(g => {
+      psInner += `<div style="font-size:10px;font-weight:600;color:#94a3b8;margin:8px 0 5px;text-transform:uppercase;letter-spacing:0.5px">${g.title}</div>`;
+      g.fields.forEach(([key, label]) => {
+        const val = ps[key];
+        if (val == null) return;
+        const dots = Array.from({length: g.max}, (_, i) =>
+          `<div class="ps-dot${i < val ? " on" : ""}"></div>`
+        ).join("");
+        psInner += `<div class="ps-row">
+          <span class="ps-label">${label}</span>
+          <div class="ps-dots">${dots}</div>
+          <span class="ps-val">${val}</span>
+        </div>`;
+      });
+    });
+  }
+  h += section("Post-Survey", psInner);
+
+  document.getElementById("left-panel").innerHTML = h;
+}
+
+// ── Right panel — conversation ─────────────────────────────────────────────
+function renderRight(p) {
+  const conv = p.conversation || [];
+  if (conv.length === 0) {
+    document.getElementById("right-panel").innerHTML =
+      `<div class="loading">No conversation recorded yet.</div>`;
+    return;
+  }
+
+  let h = `<div style="font-size:11px;color:#94a3b8;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
+    Conversation · ${conv.length} rounds · ${(PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "?")} · ${(TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "?")}
+  </div>`;
+
+  conv.forEach(round => {
+    const rNum = round.round_number;
+    const label = rNum === 0 ? "Intro" : `Round ${rNum}`;
+    const wc = round.user_message_chars
+      ? `${countWords(round.user_message)} words · ${round.user_message_chars} chars`
+      : `${countWords(round.user_message)} words`;
+    const rt = round.response_time_ms
+      ? `${(round.response_time_ms / 1000).toFixed(1)}s`
+      : "";
+    const ts = round.timestamp ? new Date(round.timestamp).toLocaleTimeString() : "";
+
+    h += `<div class="conv-round">
+      <div class="conv-round-header">
+        ${esc(label)}
+        <span style="color:#94a3b8;font-weight:400">${ts}</span>
+      </div>
+      <div class="conv-turn turn-user">
+        <div class="conv-speaker spk-user">
+          👤 Participant
+          <span class="conv-meta">${esc(wc)}</span>
+        </div>
+        <div class="conv-text">${esc(round.user_message)}</div>
+      </div>
+      <div class="conv-turn turn-ai">
+        <div class="conv-speaker spk-ai">
+          🤖 Sage
+          ${rt ? `<span class="conv-meta">${esc(rt)}</span>` : ""}
+        </div>
+        <div class="conv-text">${esc(round.ai_response)}</div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById("right-panel").innerHTML = h;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function section(title, inner) {
+  return `<div class="section"><div class="section-title">${title}</div>${inner}</div>`;
+}
+
+function drow(label, valueHtml) {
+  return `<div class="drow"><span class="dlabel">${label}</span><span class="dvalue">${valueHtml}</span></div>`;
+}
+
+function statusBadge(p) {
+  if (p.excluded)              return '<span class="badge badge-screened">Screened out</span>';
+  if (p.post_survey_completed) return '<span class="badge badge-done">Done</span>';
+  if (p.chat_completed)        return '<span class="badge badge-chatted">Chatted</span>';
+  if (p.survey_completed)      return '<span class="badge badge-surveyed">Surveyed</span>';
+  return '<span class="badge badge-surveyed">Started</span>';
+}
+
+function diffCls(d) {
+  const a = Math.abs(d);
+  return a < 1.0 ? "diff-green" : a < 2.0 ? "diff-amber" : "diff-orange";
+}
+
+function fmtDate(s) {
+  if (!s) return "—";
+  return new Date(s).toLocaleString("en-GB", {dateStyle:"short", timeStyle:"short"});
+}
+
+function countWords(text) {
+  if (!text) return 0;
+  return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/\n/g,"<br>");
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Introduction — HSP Study{% endblock %}
+
+{% block content %}
+<div class="card">
+
+  <!-- Topic pill -->
+  <div class="topic-pill">🌿 {{ topic }}</div>
+
+  <!-- Prompt card -->
+  <div class="topic-prompt-card">
+    {{ topic_prompt | replace('\n\n', '</p><p>') | safe }}
+    <p>Share what happened, who was there, and how it left you feeling.</p>
+  </div>
+
+  <!-- AI warning (minimal) -->
+  <div class="data-quality-notice">
+    <strong>&#9888; Please answer in your own words.</strong>
+    Using other AI tools to think or respond for you will affect your data and your payment.
+  </div>
+
+  <!-- Voice selection (moved from /chat) -->
+  <p style="font-size:0.88rem;color:#6a8a4a;margin:1.5rem 0 0.75rem;">Choose a voice for your conversation partner:</p>
+  <div class="voice-options-row" style="justify-content:flex-start;">
+    <div class="voice-option-card" id="voiceCard-nova" onclick="pickVoice('nova')">
+      <div class="voice-option-num">1</div>
+      <div class="voice-option-label">Voice 1</div>
+      <button class="voice-preview-btn" onclick="event.stopPropagation();previewVoice('nova',this)">&#9654; Preview</button>
+    </div>
+    <div class="voice-option-card" id="voiceCard-onyx" onclick="pickVoice('onyx')">
+      <div class="voice-option-num">2</div>
+      <div class="voice-option-label">Voice 2</div>
+      <button class="voice-preview-btn" onclick="event.stopPropagation();previewVoice('onyx',this)">&#9654; Preview</button>
+    </div>
+    <div class="voice-option-card" id="voiceCard-alloy" onclick="pickVoice('alloy')">
+      <div class="voice-option-num">3</div>
+      <div class="voice-option-label">Voice 3</div>
+      <button class="voice-preview-btn" onclick="event.stopPropagation();previewVoice('alloy',this)">&#9654; Preview</button>
+    </div>
+  </div>
+
+  <div class="form-actions" style="margin-top:1.5rem;">
+    <button id="introSubmitBtn" class="btn btn-primary btn-large" disabled onclick="beginConversation()">
+      Begin my conversation &rarr;
+    </button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const submitBtn = document.getElementById("introSubmitBtn");
+const COOLDOWN_SECONDS = 30;
+let cooldownDone = false;
+let selectedVoice = null;
+
+function pickVoice(voice) {
+  selectedVoice = voice;
+  document.querySelectorAll(".voice-option-card").forEach(c => c.classList.remove("selected"));
+  document.getElementById("voiceCard-" + voice).classList.add("selected");
+  checkReady();
+}
+
+const voiceCache = {};
+let currentPreviewAudio = null;
+
+function stopCurrentPreview() {
+  if (currentPreviewAudio) {
+    currentPreviewAudio.pause();
+    currentPreviewAudio = null;
+  }
+}
+
+async function preloadVoices() {
+  for (const voice of ["nova", "onyx", "alloy"]) {
+    try {
+      const res  = await fetch(`/api/voice-preview?voice=${voice}`);
+      const data = await res.json();
+      // Store raw base64 — a fresh blob URL is created on each play
+      if (data.ok) voiceCache[voice] = data.tts_b64;
+    } catch (_) {}
+  }
+}
+
+function b64ToBlobUrl(b64) {
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+}
+
+async function previewVoice(voice, btn) {
+  if (voiceCache[voice]) {
+    stopCurrentPreview();
+    const url = b64ToBlobUrl(voiceCache[voice]);
+    currentPreviewAudio = new Audio(url);
+    currentPreviewAudio.onended = () => { URL.revokeObjectURL(url); currentPreviewAudio = null; };
+    currentPreviewAudio.onerror = () => { URL.revokeObjectURL(url); currentPreviewAudio = null; };
+    currentPreviewAudio.play().catch(() => { URL.revokeObjectURL(url); currentPreviewAudio = null; });
+    return;
+  }
+  // cache miss — fall back to on-demand
+  btn.textContent = "Loading\u2026";
+  btn.disabled = true;
+  try {
+    const res  = await fetch(`/api/voice-preview?voice=${voice}`);
+    const data = await res.json();
+    if (data.ok) {
+      voiceCache[voice] = data.tts_b64;
+      await playPreviewAudio(b64ToBlobUrl(data.tts_b64));
+    }
+  } finally {
+    btn.textContent = "\u25b6 Preview";
+    btn.disabled = false;
+  }
+}
+
+function playPreviewAudio(blobUrl) {
+  return new Promise(resolve => {
+    stopCurrentPreview();
+    currentPreviewAudio = new Audio(blobUrl);
+    currentPreviewAudio.onended = () => { URL.revokeObjectURL(blobUrl); currentPreviewAudio = null; resolve(); };
+    currentPreviewAudio.onerror = () => { URL.revokeObjectURL(blobUrl); currentPreviewAudio = null; resolve(); };
+    currentPreviewAudio.play().catch(() => { URL.revokeObjectURL(blobUrl); currentPreviewAudio = null; resolve(); });
+  });
+}
+
+function checkReady() {
+  submitBtn.disabled = !(cooldownDone && selectedVoice);
+}
+
+function startCountdown() {
+  let remaining = COOLDOWN_SECONDS;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Please read the prompt carefully\u2026 (" + remaining + "s)";
+
+  const interval = setInterval(function () {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(interval);
+      cooldownDone = true;
+      submitBtn.textContent = "Begin my conversation \u2192";
+      checkReady();
+    } else {
+      submitBtn.textContent = "Please read the prompt carefully\u2026 (" + remaining + "s)";
+    }
+  }, 1000);
+}
+
+async function beginConversation() {
+  if (!selectedVoice || !cooldownDone) return;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Starting\u2026";
+  await fetch("/api/voice-select", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ voice: selectedVoice }),
+  });
+  await fetch("/api/intro", { method: "POST" });
+  window.location.href = "/chat";
+}
+
+preloadVoices();
+startCountdown();
+</script>
+{% endblock %}

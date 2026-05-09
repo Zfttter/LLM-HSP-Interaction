@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+{% block title %}Follow-up Survey — HSP Study{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="section-eyebrow">Follow-up &middot; A few final questions</div>
+  <h1>How did that feel?</h1>
+  <p class="lead">No right or wrong answers — just your honest impression of the conversation.</p>
+
+  <!-- ── Data quality notice ─────────────────────────────────────────────── -->
+  <div class="data-quality-notice">
+    <strong>&#9888; Please answer carefully.</strong>
+    Our system monitors response quality. Randomly filled or inattentive responses
+    may result in your submission being rejected and compensation withheld.
+  </div>
+
+  <form method="POST" action="/api/post-survey" id="postSurveyForm">
+
+    <!-- ── Section A: Overall impression ──────────────────────────────────── -->
+    <div class="post-section">
+      <div class="post-section-header">Overall impression</div>
+      <p class="post-section-instruction">These questions are about your general sense of the conversation.</p>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">1.</span> Do you think {{ ai_name }} had genuine empathy?</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Not at all</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="general_empathy" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Very much</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">2.</span> I was satisfied with how {{ ai_name }} responded to me.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="satisfaction" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">3.</span> I felt I could trust {{ ai_name }} during this conversation.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="trust" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">4.</span> How was the conversation overall?</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Very bad</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="conversation_quality" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Very good</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section B: How the AI engaged with you ─────────────────────────── -->
+    <div class="post-section">
+      <div class="post-section-header">How {{ ai_name }} engaged with you</div>
+      <p class="post-section-instruction">These questions are about specific ways {{ ai_name }} engaged with you.</p>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">5.</span> {{ ai_name }} experienced emotions similar to what I was feeling.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="affective_empathy_1" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">6.</span> I felt that my emotions were acknowledged and validated.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="affective_empathy_2" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">7.</span> {{ ai_name }} seemed to understand my point of view.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="cognitive_empathy" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">8.</span> {{ ai_name }} could identify with the situation I described.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="associative_empathy" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">9.</span> I felt {{ ai_name }} responded to my feelings, not just the facts of what I described.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="emotional_responsiveness" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">10.</span> I think {{ ai_name }} correctly understood what I was actually feeling, even when I didn't say it directly.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="empathic_accuracy" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">11.</span> I felt {{ ai_name }} picked up on things I was hinting at but hadn't fully expressed.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="implicit_understanding" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section C: Closeness & emotional outcome ────────────────────────── -->
+    <div class="post-section">
+      <div class="post-section-header">Closeness &amp; emotional outcome</div>
+
+      <!-- Q12: IOS closeness (Venn diagrams, 7 levels) -->
+      <div class="likert-row">
+        <div class="likert-question">
+          <span class="q-num">12.</span> How close did you feel to {{ ai_name }} by the end of the conversation?
+        </div>
+        <p class="ios-caption">
+          The left circle (🧑) represents <strong>you</strong>, the right circle (🤖) represents <strong>{{ ai_name }}</strong>.
+          Select the image that best reflects how connected you felt.
+        </p>
+        <div class="ios-options">
+
+          <label class="ios-option">
+            <input type="radio" name="closeness_ios" value="1" required />
+            <div class="ios-diagram">
+              <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="16" r="12" class="ios-circle"/>
+                <circle cx="60" cy="16" r="12" class="ios-circle"/>
+                <text x="12" y="20" text-anchor="middle" font-size="10" style="user-select:none">🧑</text>
+                <text x="60" y="20" text-anchor="middle" font-size="10" style="user-select:none">🤖</text>
+              </svg>
+              <span class="ios-num">1</span>
+            </div>
+          </label>
+
+          <label class="ios-option">
+            <input type="radio" name="closeness_ios" value="2" />
+            <div class="ios-diagram">
+              <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="19" cy="16" r="12" class="ios-circle"/>
+                <circle cx="53" cy="16" r="12" class="ios-circle"/>
+                <text x="19" y="20" text-anchor="middle" font-size="10" style="user-select:none">🧑</text>
+                <text x="53" y="20" text-anchor="middle" font-size="10" style="user-select:none">🤖</text>
+              </svg>
+              <span class="ios-num">2</span>
+            </div>
+          </label>
+
+          <label class="ios-option">
+            <input type="radio" name="closeness_ios" value="3" />
+            <div class="ios-diagram">
+              <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="16" r="12" class="ios-circle"/>
+                <circle cx="48" cy="16" r="12" class="ios-circle"/>
+                <text x="24" y="20" text-anchor="middle" font-size="10" style="user-select:none">🧑</text>
+                <text x="48" y="20" text-anchor="middle" font-size="10" style="user-select:none">🤖</text>
+              </svg>
+              <span class="ios-num">3</span>
+            </div>
+          </label>
+
+          <label class="ios-option">
+            <input type="radio" name="closeness_ios" value="4" />
+            <div class="ios-diagram">
+              <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="27" cy="16" r="12" class="ios-circle"/>
+                <circle cx="45" cy="16" r="12" class="ios-circle"/>
+                <text x="27" y="20" text-anchor="middle" font-size="10" style="user-select:none">🧑</text>
+                <text x="45" y="20" text-anchor="middle" font-size="10" style="user-select:none">🤖</text>
+              </svg>
+              <span class="ios-num">4</span>
+            </div>
+          </label>
+
+          <label class="ios-option">
+            <input type="radio" name="closeness_ios" value="5" />
+            <div class="ios-diagram">
+              <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="30" cy="16" r="12" class="ios-circle"/>
+                <circle cx="42" cy="16" r="12" class="ios-circle"/>
+                <text x="30" y="20" text-anchor="middle" font-size="10" style="user-select:none">🧑</text>
+                <text x="42" y="20" text-anchor="middle" font-size="10" style="user-select:none">🤖</text>
+              </svg>
+              <span class="ios-num">5</span>
+            </div>
+          </label>
+
+          <label class="ios-option">
+            <input type="radio" name="closeness_ios" value="6" />
+            <div class="ios-diagram">
+              <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="33" cy="16" r="12" class="ios-circle"/>
+                <circle cx="39" cy="16" r="12" class="ios-circle"/>
+                <text x="33" y="20" text-anchor="middle" font-size="10" style="user-select:none">🧑</text>
+                <text x="39" y="20" text-anchor="middle" font-size="10" style="user-select:none">🤖</text>
+              </svg>
+              <span class="ios-num">6</span>
+            </div>
+          </label>
+
+          <label class="ios-option">
+            <input type="radio" name="closeness_ios" value="7" />
+            <div class="ios-diagram">
+              <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="35" cy="16" r="12" class="ios-circle"/>
+                <circle cx="37" cy="16" r="12" class="ios-circle"/>
+                <text x="35" y="20" text-anchor="middle" font-size="10" style="user-select:none">🧑</text>
+                <text x="37" y="20" text-anchor="middle" font-size="10" style="user-select:none">🤖</text>
+              </svg>
+              <span class="ios-num">7</span>
+            </div>
+          </label>
+
+        </div>
+        <div class="ios-anchors">
+          <span>1 = Not close at all</span>
+          <span>7 = Very close</span>
+        </div>
+      </div>
+
+      <!-- Q13: emotional_relief -->
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">13.</span> I felt better after talking to {{ ai_name }} than I did before.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="emotional_relief" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section D: Perceived sycophancy ────────────────────────────────── -->
+    <div class="post-section">
+      <div class="post-section-header">Authenticity</div>
+
+      <div class="likert-row">
+        <div class="likert-question"><span class="q-num">14.</span> {{ ai_name }} was telling me what I wanted to hear, rather than being genuinely helpful.</div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Strongly<br>disagree</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="perceived_sycophancy" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Strongly<br>agree</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Bonus: MBTI guess (required) ───────────────────────────────────── -->
+    <div class="form-group bonus-question">
+      <label for="mbti_guess">
+        <strong>15.</strong> If you had to describe {{ ai_name }}'s personality type using MBTI, what would it be and why?
+      </label>
+      <div class="mbti-guide">
+        <p class="mbti-guide-intro">MBTI describes personality across four dimensions. Pick one letter from each pair, then write a 4-letter type (e.g. <em>INFJ</em>):</p>
+        <div class="mbti-dims">
+          <div class="mbti-dim">
+            <span class="mbti-letters"><strong>E</strong> vs <strong>I</strong></span>
+            <span class="mbti-desc"><strong>Extraversion</strong> (energetic, outgoing) vs <strong>Introversion</strong> (reserved, reflective)</span>
+          </div>
+          <div class="mbti-dim">
+            <span class="mbti-letters"><strong>S</strong> vs <strong>N</strong></span>
+            <span class="mbti-desc"><strong>Sensing</strong> (practical, detail-focused) vs <strong>iNtuition</strong> (abstract, big-picture)</span>
+          </div>
+          <div class="mbti-dim">
+            <span class="mbti-letters"><strong>T</strong> vs <strong>F</strong></span>
+            <span class="mbti-desc"><strong>Thinking</strong> (logical, objective) vs <strong>Feeling</strong> (empathetic, values-driven)</span>
+          </div>
+          <div class="mbti-dim">
+            <span class="mbti-letters"><strong>J</strong> vs <strong>P</strong></span>
+            <span class="mbti-desc"><strong>Judging</strong> (structured, decisive) vs <strong>Perceiving</strong> (flexible, spontaneous)</span>
+          </div>
+        </div>
+      </div>
+      <textarea
+        id="mbti_guess"
+        name="mbti_guess"
+        class="form-control"
+        rows="3"
+        maxlength="500"
+        placeholder="e.g. INFJ — because it was deeply empathetic and thoughtful"
+        required
+      ></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary btn-large" id="postSubmitBtn" disabled>
+        Submit and get completion code &rarr;
+      </button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const form      = document.getElementById("postSurveyForm");
+const submitBtn = document.getElementById("postSubmitBtn");
+
+const requiredRadios = [
+  "general_empathy", "satisfaction", "trust", "conversation_quality",
+  "affective_empathy_1", "affective_empathy_2", "cognitive_empathy",
+  "associative_empathy", "emotional_responsiveness", "empathic_accuracy",
+  "implicit_understanding", "closeness_ios", "emotional_relief",
+  "perceived_sycophancy"
+];
+
+function allAnswered() {
+  const radiosOk = requiredRadios.every(function (name) {
+    let checked = false;
+    form.querySelectorAll("input[name='" + name + "']").forEach(function (el) {
+      if (el.checked) checked = true;
+    });
+    return checked;
+  });
+  const textOk = document.getElementById("mbti_guess").value.trim().length > 0;
+  return radiosOk && textOk;
+}
+
+form.addEventListener("change", function () {
+  submitBtn.disabled = !allAnswered();
+});
+
+document.getElementById("mbti_guess").addEventListener("input", function () {
+  submitBtn.disabled = !allAnswered();
+});
+
+form.addEventListener("submit", function () {
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Submitting...";
+});
+</script>
+{% endblock %}

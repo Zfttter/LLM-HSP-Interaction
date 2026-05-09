@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Study Complete — HSP Study{% endblock %}
+
+{% block content %}
+<div class="card card-narrow">
+  <div class="card-icon success-icon">&#10003;</div>
+  <h1>Thank You!</h1>
+  <p>You have successfully completed the study. We sincerely appreciate your participation.</p>
+
+  <div class="completion-box">
+    <p class="completion-label">Your completion code for Prolific:</p>
+    <div class="completion-code" id="completionCode">{{ completion_code }}</div>
+    <button class="btn btn-secondary copy-btn" onclick="copyCode()">Copy Code</button>
+    <p id="copyConfirm" class="copy-confirm" style="display:none;">Copied!</p>
+  </div>
+
+  <p class="scroll-prompt">Once you've copied your code, scroll down to see your personal profile — a small thank-you from us.</p>
+
+  <div class="instructions">
+    <h3>Next steps:</h3>
+    <ol>
+      <li>Copy the completion code above.</li>
+      <li>Return to Prolific.</li>
+      <li>Paste the code in the submission box to confirm your participation.</li>
+    </ol>
+  </div>
+
+  <p class="note">
+    Your responses will be kept strictly confidential and used only for research purposes.
+    If you have any questions, please contact the research team via Prolific messaging.
+  </p>
+
+  {% if hsps_score %}
+  <div class="report-divider">
+    <div class="bounce-arrow">↓</div>
+    <div class="divider-rule-row">
+      <span class="divider-text">Your personal summary is below</span>
+    </div>
+  </div>
+
+  <div class="report-body">
+    <h2 class="report-title">Your Personal Report</h2>
+    <p class="section-desc">Based on your survey responses, here is a brief summary of your profile.</p>
+
+    <!-- HSPS -->
+    <div class="report-section">
+      <div class="report-section-header">
+        <h3>Sensory Sensitivity</h3>
+        <span class="level-pill {{ hsps_cls }}">{{ hsps_level }}</span>
+      </div>
+      <div class="report-score">{{ "%.1f"|format(hsps_score) }}<span class="report-score-max"> / 7</span></div>
+      <div class="track"><div class="track-fill {{ hsps_cls }}" style="width:{{ hsps_pct }}%"></div></div>
+      <p class="report-desc">{{ hsps_text }}</p>
+    </div>
+
+    <!-- BFI -->
+    {% if bfi_display %}
+    <div class="report-section">
+      <h3>Personality Profile <span class="report-subtitle">(Big Five)</span></h3>
+      {% for dim in bfi_display %}
+      <div class="dim-item">
+        <div class="dim-header">
+          <span class="dim-name">{{ dim.label }}</span>
+          <span class="dim-meta">
+            <span class="dim-score">{{ "%.1f"|format(dim.score) }}/5</span>
+            <span class="level-pill level-pill-sm {{ dim.cls }}">{{ dim.level }}</span>
+          </span>
+        </div>
+        <div class="track"><div class="track-fill {{ dim.cls }}" style="width:{{ dim.pct }}%"></div></div>
+        <p class="dim-desc">{{ dim.desc }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <p class="note">
+      These scores reflect your self-reported responses and are a general overview only.
+      They are not diagnostic and should not be interpreted as a clinical assessment.
+    </p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyCode() {
+  const code = document.getElementById("completionCode").textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const el = document.getElementById("copyConfirm");
+    el.style.display = "block";
+    setTimeout(() => { el.style.display = "none"; }, 2000);
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Welcome — HSP Study{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Landing page visual overrides ───────────────────────────── */
+  body { background: #FAFAF8; }
+
+  /* Softer card */
+  .card {
+    border: 0.5px solid #d4e8b8;
+    box-shadow: none;
+    border-radius: 14px;
+    padding: 2.25rem 2.75rem;
+  }
+
+  /* Page title */
+  .landing-title {
+    font-size: 1.65rem;
+    font-weight: 400;
+    color: #2a5000;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.01em;
+  }
+
+  .landing-lead {
+    font-size: 1rem;
+    color: #6a8a4a;
+    font-weight: 300;
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+  }
+
+  /* Consent box — warmer tint */
+  .consent-box {
+    background: #f7fbf2;
+    border: 1px solid #d4e8b8;
+    border-radius: 8px;
+  }
+  .consent-box h2 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #2a5000;
+    margin-bottom: 0.75rem;
+  }
+  .consent-box h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #3a6010;
+    margin: 1rem 0 0.3rem;
+  }
+  .consent-box p, .consent-box li {
+    font-size: 0.9rem;
+    color: #444;
+    font-weight: 300;
+    line-height: 1.75;
+  }
+
+  /* Scroll hint */
+  .scroll-hint {
+    font-size: 0.82rem;
+    color: #8aaa6a;
+    text-align: center;
+    margin: 0.5rem 0 0;
+    transition: opacity 0.4s ease;
+  }
+
+  /* Checkbox label */
+  .consent-check { margin: 1.25rem 0 1rem; }
+  .checkbox-label { font-size: 0.88rem; color: #444; font-weight: 300; line-height: 1.6; }
+
+  /* Sage CTA button */
+  #consentBtn {
+    background: #3B6D11;
+    border-color: #3B6D11;
+    border-radius: 8px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    box-shadow: none;
+  }
+  #consentBtn:hover:not(:disabled) {
+    background: #2d5409;
+    border-color: #2d5409;
+  }
+  #consentBtn:disabled {
+    background: #C0DD97;
+    border-color: #C0DD97;
+    color: white;
+    opacity: 1;
+  }
+
+  /* Test-mode ID input */
+  .test-note {
+    font-size: 0.82rem;
+    color: #8aaa6a;
+    font-style: italic;
+    margin-bottom: 0.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h1 class="landing-title">A Conversation About Your Experience</h1>
+  <p class="landing-lead">
+    We're glad you're here. Before we begin, please take a moment to read through the
+    information below — it'll only take a minute.
+  </p>
+
+  <div class="consent-box" id="consentBox">
+    <h2>Before we begin</h2>
+
+    <h3>What this is about</h3>
+    <p>
+      This is a space to share something that's been on your mind — a personal experience
+      you'd like to talk through with an AI companion. As part of an academic research
+      project, we're exploring how people experience these conversations.
+    </p>
+
+    <h3>Here's what to expect</h3>
+    <ol>
+      <li>A short screening questionnaire (approximately 5–8 minutes)</li>
+      <li>A brief introduction and setup for the voice conversation</li>
+      <li>A voice-based conversation with an AI partner on an assigned topic (approximately 10–15 minutes). We recommend using headphones and finding a quiet space beforehand.</li>
+      <li>A short post-conversation questionnaire of approximately 15 questions (approximately 3–5 minutes)</li>
+    </ol>
+
+    <h3>Time</h3>
+    <p>The whole thing takes about 20–30 minutes, at your own pace.</p>
+
+    <h3>A few things to know</h3>
+    <p>
+      The conversation topics involve personal emotional experiences, which some people
+      find mildly uncomfortable. You're free to stop at any time without penalty. There
+      are no right or wrong answers — we're simply interested in your honest experience.
+    </p>
+
+    <h3>Your privacy</h3>
+    <p>
+      Your responses are kept strictly confidential. Your Prolific ID is used only to
+      link your data within this study and will not be shared publicly. All data is
+      stored securely and used for academic research only.
+    </p>
+
+    <h3>Voice recording</h3>
+    <p>
+      This study uses voice-based conversation. Your microphone will be used to record
+      your spoken responses. Each recording will be automatically transcribed, and both
+      the audio file and the transcript will be stored securely on our research servers.
+      By participating, you consent to this voice recording and storage.
+    </p>
+
+    <h3>Voluntary participation</h3>
+    <p>
+      Taking part is entirely your choice. You may withdraw at any point by closing
+      your browser, though you will not receive compensation if the study is left
+      incomplete.
+    </p>
+
+    <h3>Questions?</h3>
+    <p>If anything is unclear, please reach out to the research team via Prolific messaging.</p>
+  </div>
+
+  <p id="scrollHint" class="scroll-hint">&#8595; Scroll down to read everything before continuing.</p>
+
+  {% if prolific_id %}
+  <form method="POST" action="/api/consent">
+    <input type="hidden" name="prolific_id" value="{{ prolific_id }}" />
+    <div class="consent-check">
+      <label class="checkbox-label">
+        <input type="checkbox" id="agreeCheck" required />
+        <span>I have read and understood the information above. I am 18 years of age or older, and I voluntarily agree to participate in this study.</span>
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary btn-large" id="consentBtn" disabled>
+      I'm ready to begin &rarr;
+    </button>
+  </form>
+  {% else %}
+  <div class="alert alert-warning" style="font-size:0.88rem;">
+    <strong>No Prolific ID detected.</strong>
+    If you arrived here from Prolific, please use the original link.
+    For testing, you may enter an ID below.
+  </div>
+  <form method="POST" action="/api/consent-form">
+    <p class="test-note">Testing only — enter any ID:</p>
+    <div class="form-group">
+      <input type="text" id="prolific_id" name="prolific_id" class="form-control"
+             style="max-width:280px;border-color:#C0DD97;"
+             placeholder="e.g. TEST123" required />
+    </div>
+    <div class="consent-check">
+      <label class="checkbox-label">
+        <input type="checkbox" id="agreeCheck" required />
+        <span>I have read and understood the information above. I am 18 years of age or older, and I voluntarily agree to participate in this study.</span>
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary btn-large" id="consentBtn" disabled>
+      I'm ready to begin &rarr;
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const consentBox = document.getElementById("consentBox");
+const agreeCheck = document.getElementById("agreeCheck");
+const consentBtn = document.getElementById("consentBtn");
+const scrollHint = document.getElementById("scrollHint");
+
+let hasScrolled = false;
+
+function checkScroll() {
+  if (!hasScrolled &&
+      consentBox.scrollTop + consentBox.clientHeight >= consentBox.scrollHeight - 24) {
+    hasScrolled = true;
+    scrollHint.style.opacity = "0";
+  }
+}
+
+function updateBtn() {
+  consentBtn.disabled = !(hasScrolled && agreeCheck.checked);
+}
+
+consentBox.addEventListener("scroll", function () { checkScroll(); updateBtn(); });
+agreeCheck.addEventListener("change", updateBtn);
+
+// If content fits without a scrollbar, treat as already read
+if (consentBox.scrollHeight <= consentBox.clientHeight + 24) {
+  hasScrolled = true;
+  scrollHint.style.display = "none";
+}
+
+updateBtn();
+</script>
+{% endblock %}

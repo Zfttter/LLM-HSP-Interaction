@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Not Eligible — HSP Study{% endblock %}
+
+{% block content %}
+<div class="card card-narrow">
+  <div class="card-icon">&#128203;</div>
+  <h1>Thank You for Your Time</h1>
+  <p>Based on your responses, you do not meet the eligibility criteria for this study.</p>
+  {% if reason == "age_under_18" %}
+  <p class="exclusion-reason">Reason: participants must be 18 years of age or older.</p>
+  {% elif reason == "non_native_english" %}
+  <p class="exclusion-reason">Reason: this study requires native English speakers.</p>
+  {% elif reason == "frequent_ai_usage" %}
+  <p class="exclusion-reason">Reason: participants who frequently use AI for emotional conversations are not eligible.</p>
+  {% else %}
+  <p class="exclusion-reason">You may have been excluded based on age, language, or AI usage criteria.</p>
+  {% endif %}
+  <p>
+    We appreciate your willingness to participate. Please return to Prolific and
+    select "Stop without completing" to receive your participation fee where applicable.
+  </p>
+  <p class="note">
+    If you believe you received this message in error, please contact the research team.
+  </p>
+</div>
+{% endblock %}

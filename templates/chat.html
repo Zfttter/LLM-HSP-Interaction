@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Conversation — HSP Study{% endblock %}
+
+{% block head %}
+<style>
+  body { background: #FAFAF8; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero banner -->
+<div class="sage-hero">
+  <span class="sage-hero-leaf">🌿</span>
+  <p class="sage-tagline">A quiet space, just for you</p>
+</div>
+
+<div class="chat-layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
+  <aside class="chat-sidebar sage-sidebar">
+
+    <div class="sage-identity-card">
+      <span class="sage-avatar">🌿</span>
+      <div class="sage-id-text">
+        <div class="sage-name">Sage</div>
+        <div class="sage-subtitle">Here to listen</div>
+      </div>
+    </div>
+
+    <!-- Progress dots -->
+    <div class="sage-progress-card">
+      <div class="sage-progress-label">
+        <span id="currentRound">0</span>&thinsp;of&thinsp;{{ total_rounds }}&thinsp;moments
+      </div>
+      <div class="sage-dots-row">
+        {% for i in range(total_rounds) %}
+        <span class="sage-dot"></span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Topic prompt — always visible, never collapses -->
+    <div class="sage-topic-box sage-topic-box--static">
+      <div class="sage-topic-header">Your topic &mdash; <strong>{{ topic }}</strong></div>
+      <div class="sage-topic-body">
+        <p class="sage-topic-prompt">{{ topic_prompt }}</p>
+      </div>
+    </div>
+
+    <!-- Private scratchpad -->
+    <div class="sage-scratchpad-box">
+      <div class="sage-scratchpad-label">
+        ✏️ Your private notes — not shared with Sage (optional)
+      </div>
+      <textarea
+        id="scratchpad"
+        class="sage-scratchpad-textarea"
+        placeholder="Draft your thoughts here before speaking…"
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+    <div class="ai-warning-banner ai-warning-sidebar">
+      &#9888; Do not use external AI tools (e.g., ChatGPT) to write your responses. This can be detected and will disqualify your submission.
+    </div>
+
+  </aside>
+
+  <!-- ── Main chat ────────────────────────────────────────────────────── -->
+  <div class="chat-main sage-chat-main">
+
+    <!-- Countdown gate — covers chat until participant is ready -->
+    <div id="countdownGate" class="countdown-gate">
+      <div class="countdown-content">
+        <p class="countdown-instruction">Before we begin…</p>
+        <p class="countdown-sub">
+          Please read the topic prompt on the left carefully before starting the conversation.<br><br>
+          You may also use the <strong>private notepad</strong> (bottom-left) to jot down keywords or organise your thoughts before speaking.<span id="countdownNum" class="countdown-num">20</span>
+        </p>
+        <button id="readyBtn" class="sage-ready-btn" style="display:none;" onclick="onReady()">
+          I'm Ready
+        </button>
+      </div>
+    </div>
+
+    <!-- Status bar — centered, top of chat area -->
+    <div class="chat-status-bar">
+      <span id="statusDot" class="sage-status-dot idle"></span>
+      <span id="statusText" class="sage-status-text">Loading…</span>
+    </div>
+
+    <div class="chat-messages" id="chatMessages"></div>
+
+    <!-- Voice input area -->
+    <div class="chat-input-area sage-input-area" id="voiceInputArea" style="display:none;">
+
+      <!-- Record toggle state (default) -->
+      <div id="pttState">
+        <div class="sage-ptt-row">
+          <button id="pttBtn" class="sage-ptt-btn" onclick="toggleRecording()">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="16" y="6" width="16" height="26" rx="8" fill="currentColor"/>
+              <path d="M10 26c0 7.732 6.268 14 14 14s14-6.268 14-14"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="24" y1="40" x2="24" y2="46"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <span id="pttLabel" class="sage-ptt-label">Click to speak</span>
+          </button>
+        </div>
+        <p class="sage-ptt-hint" id="pttHint">Click once to start · click again to stop</p>
+      </div>
+
+      <!-- Transcript preview state (hidden until recording done) -->
+      <div id="previewState" style="display:none;">
+        <div class="sage-preview-label">Review your message before sending:</div>
+        <div class="sage-input-row">
+          <textarea id="transcriptText" class="sage-transcript-text" rows="3"></textarea>
+          <button id="submitBtn" class="sage-send-btn" onclick="submitTurn()">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+        <div style="margin-top:0.55rem; text-align:right;">
+          <button class="sage-rerecord-btn" onclick="reRecord()">↺ Re-record</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Completion modal -->
+<div id="redirectModal" class="modal" style="display:none;">
+  <div class="modal-content sage-modal-content">
+    <div class="sage-modal-leaf">🌿</div>
+    <h2 class="sage-modal-title">Thank you for sharing</h2>
+    <p class="sage-modal-body">You've completed the conversation.</p>
+    <button class="sage-ready-btn" onclick="window.location.href='/post-survey'" style="margin-top:1.25rem;">
+      Let's go &rarr;
+    </button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>const TOTAL_ROUNDS = {{ total_rounds }};</script>
+<script src="/static/js/chat.js"></script>
+{% endblock %}
