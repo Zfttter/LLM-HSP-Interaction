@@ -348,7 +348,7 @@
 
   .charts-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 16px;
     margin-bottom: 22px;
   }
@@ -382,6 +382,21 @@
     font-size: 13px;
     color: #1e293b;
   }
+
+  /* ── Export button ── */
+  .export-btn {
+    padding: 6px 13px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #475569;
+    font-size: 12px;
+    text-decoration: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .export-btn:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
 
   .loading {
     text-align: center;
@@ -417,6 +432,7 @@
     <div class="toolbar">
       <input type="text" class="search-input" id="search-input" placeholder="Search Prolific ID…" oninput="onSearch()">
       <span class="count-label" id="count-label">Loading…</span>
+      <a id="csv-export-btn" class="export-btn" href="#" target="_blank">⬇ Export CSV</a>
     </div>
     <div class="table-wrap">
       <div id="table-loading" class="loading">Loading participants…</div>
@@ -433,6 +449,8 @@
             <th onclick="sortBy('ai_mbti_type')">AI→Subj MBTI<span class="sort-indicator" id="si-ai_mbti_type"></span></th>
             <th onclick="sortBy('mbti_guess')">Subj→AI MBTI<span class="sort-indicator" id="si-mbti_guess"></span></th>
             <th>BFI</th>
+            <th onclick="sortBy('tts_voice')">Voice<span class="sort-indicator" id="si-tts_voice"></span></th>
+            <th onclick="sortBy('turns_completed')" class="right">Turns<span class="sort-indicator" id="si-turns_completed"></span></th>
             <th onclick="sortBy('status')">Status<span class="sort-indicator" id="si-status"></span></th>
           </tr>
         </thead>
@@ -472,6 +490,10 @@
         <div class="chart-card">
           <div class="chart-title">AI HSPS Score by Platform</div>
           <canvas id="chart-platform" height="180"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Voice Selection Distribution</div>
+          <canvas id="chart-voice" height="180"></canvas>
         </div>
       </div>
 
@@ -519,6 +541,7 @@ let sortDir = -1; // -1 = desc, 1 = asc
 let selectedId = null;
 let chartHsps = null;
 let chartPlatform = null;
+let chartVoice = null;
 
 // ── Lookups ───────────────────────────────────────────────────────────────────
 const PLATFORM_SHORT = {
@@ -535,9 +558,15 @@ const TOPIC_SHORT = {
   "anticipatory_anxiety":  "Anticip.",
 };
 const BFI_DIMS = ["Extraversion", "Agreeableness", "Conscientiousness", "Neuroticism", "Openness"];
+const VOICE_LABEL = { "nova": "Voice 1", "onyx": "Voice 2", "alloy": "Voice 3" };
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", loadAll);
+document.addEventListener("DOMContentLoaded", () => {
+  // Wire up CSV export link with current key
+  const csvBtn = document.getElementById("csv-export-btn");
+  if (csvBtn) csvBtn.href = `/admin/api/export/voice-turns.csv?key=${encodeURIComponent(ADMIN_KEY)}`;
+  loadAll();
+});
 
 async function loadAll() {
   await Promise.all([loadParticipants(), loadOverview()]);
@@ -668,7 +697,9 @@ function renderTable() {
     const selfMBTI = p.self_mbti || "—";
     const aiMBTI   = p.ai_mbti_type || "—";
     const guessMBTI= p.mbti_guess || "—";
-    const bfiHtml  = formatBFICell(p.bfi_scores);
+    const bfiHtml    = formatBFICell(p.bfi_scores);
+    const voiceHtml  = p.tts_voice ? escHtml(VOICE_LABEL[p.tts_voice] || p.tts_voice) : "<span style='color:#94a3b8'>—</span>";
+    const turnsHtml  = p.turns_completed != null ? `${p.turns_completed}/6` : "<span style='color:#94a3b8'>—</span>";
     const statusHtml = formatStatus(p);
 
     return `<tr class="${rowClass}" onclick="window.location.href='/admin/participant/${p.id}?key='+encodeURIComponent(ADMIN_KEY)" style="cursor:pointer" data-id="${p.id}">
@@ -682,6 +713,8 @@ function renderTable() {
       <td>${aiMBTI}</td>
       <td>${guessMBTI}</td>
       <td class="bfi-cell">${bfiHtml}</td>
+      <td>${voiceHtml}</td>
+      <td class="right">${turnsHtml}</td>
       <td>${statusHtml}</td>
     </tr>`;
   });
@@ -949,6 +982,31 @@ function renderOverview(data) {
       plugins: { legend: { display: false } },
       scales: {
         y: { beginAtZero: false, min: 1, max: 7 }
+      }
+    }
+  });
+
+  // Voice distribution chart
+  if (chartVoice) chartVoice.destroy();
+  const voiceDist = data.voice_dist || {};
+  const voiceKeys   = Object.keys(voiceDist);
+  const voiceLabels = voiceKeys.map(k => VOICE_LABEL[k] || k);
+  const voiceVals   = voiceKeys.map(k => voiceDist[k]);
+  const ctxVoice = document.getElementById("chart-voice").getContext("2d");
+  chartVoice = new Chart(ctxVoice, {
+    type: "doughnut",
+    data: {
+      labels: voiceLabels,
+      datasets: [{
+        data: voiceVals,
+        backgroundColor: ["#3b82f6", "#8b5cf6", "#f59e0b"],
+        borderWidth: 2,
+        borderColor: "#fff",
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { position: "bottom", labels: { font: { size: 11 } } }
       }
     }
   });

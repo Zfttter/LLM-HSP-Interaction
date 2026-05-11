@@ -173,7 +173,7 @@ _BUCKET = "voice-recordings"
 
 def upload_audio(participant_id: str, session_id: str, turn_number: int, audio_bytes: bytes) -> str:
     """Upload WebM audio to Supabase Storage (private bucket). Returns file path or empty string."""
-    path = f"{participant_id}_{session_id}_{turn_number}_audio.webm"
+    path = f"{participant_id}/{session_id}_{turn_number}_audio.webm"
     try:
         db().storage.from_(_BUCKET).upload(
             path=path,

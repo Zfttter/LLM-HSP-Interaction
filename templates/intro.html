@@ -72,15 +72,14 @@ function stopCurrentPreview() {
   }
 }
 
-async function preloadVoices() {
-  for (const voice of ["nova", "onyx", "alloy"]) {
-    try {
-      const res  = await fetch(`/api/voice-preview?voice=${voice}`);
-      const data = await res.json();
-      // Store raw base64 — a fresh blob URL is created on each play
-      if (data.ok) voiceCache[voice] = data.tts_b64;
-    } catch (_) {}
-  }
+// Load all three voices in parallel
+function preloadVoices() {
+  ["nova", "onyx", "alloy"].forEach(voice => {
+    fetch(`/api/voice-preview?voice=${voice}`)
+      .then(r => r.json())
+      .then(data => { if (data.ok && data.tts_b64) voiceCache[voice] = data.tts_b64; })
+      .catch(() => {});
+  });
 }
 
 function b64ToBlobUrl(b64) {
@@ -91,39 +90,61 @@ function b64ToBlobUrl(b64) {
 }
 
 async function previewVoice(voice, btn) {
-  if (voiceCache[voice]) {
+  // If already playing this voice, stop it
+  if (btn.dataset.playing === "1") {
     stopCurrentPreview();
-    const url = b64ToBlobUrl(voiceCache[voice]);
-    currentPreviewAudio = new Audio(url);
-    currentPreviewAudio.onended = () => { URL.revokeObjectURL(url); currentPreviewAudio = null; };
-    currentPreviewAudio.onerror = () => { URL.revokeObjectURL(url); currentPreviewAudio = null; };
-    currentPreviewAudio.play().catch(() => { URL.revokeObjectURL(url); currentPreviewAudio = null; });
+    btn.textContent = "\u25b6 Preview";
+    btn.dataset.playing = "0";
     return;
   }
-  // cache miss — fall back to on-demand
-  btn.textContent = "Loading\u2026";
-  btn.disabled = true;
-  try {
-    const res  = await fetch(`/api/voice-preview?voice=${voice}`);
-    const data = await res.json();
-    if (data.ok) {
-      voiceCache[voice] = data.tts_b64;
-      await playPreviewAudio(b64ToBlobUrl(data.tts_b64));
-    }
-  } finally {
-    btn.textContent = "\u25b6 Preview";
+
+  // Stop any other voice playing
+  document.querySelectorAll(".voice-preview-btn").forEach(b => {
+    b.textContent = "\u25b6 Preview";
+    b.dataset.playing = "0";
+  });
+  stopCurrentPreview();
+
+  // Fetch from cache or on-demand
+  if (!voiceCache[voice]) {
+    btn.textContent = "Loading\u2026";
+    btn.disabled = true;
+    try {
+      const res  = await fetch(`/api/voice-preview?voice=${voice}`);
+      const data = await res.json();
+      if (data.ok && data.tts_b64) voiceCache[voice] = data.tts_b64;
+    } catch (_) {}
     btn.disabled = false;
   }
-}
 
-function playPreviewAudio(blobUrl) {
-  return new Promise(resolve => {
-    stopCurrentPreview();
-    currentPreviewAudio = new Audio(blobUrl);
-    currentPreviewAudio.onended = () => { URL.revokeObjectURL(blobUrl); currentPreviewAudio = null; resolve(); };
-    currentPreviewAudio.onerror = () => { URL.revokeObjectURL(blobUrl); currentPreviewAudio = null; resolve(); };
-    currentPreviewAudio.play().catch(() => { URL.revokeObjectURL(blobUrl); currentPreviewAudio = null; resolve(); });
-  });
+  if (!voiceCache[voice]) {
+    btn.textContent = "\u25b6 Preview";
+    return;
+  }
+
+  // Play
+  try {
+    const url = b64ToBlobUrl(voiceCache[voice]);
+    currentPreviewAudio = new Audio(url);
+
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      currentPreviewAudio = null;
+      btn.textContent = "\u25b6 Preview";
+      btn.dataset.playing = "0";
+    };
+
+    currentPreviewAudio.onended = cleanup;
+    currentPreviewAudio.onerror = cleanup;
+
+    btn.textContent = "\u25a0 Stop";
+    btn.dataset.playing = "1";
+
+    await currentPreviewAudio.play().catch(cleanup);
+  } catch (_) {
+    btn.textContent = "\u25b6 Preview";
+    btn.dataset.playing = "0";
+  }
 }
 
 function checkReady() {

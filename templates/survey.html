@@ -39,7 +39,63 @@
           <span class="scale-anchor right">Extremely</span>
         </div>
       </div>
+      {% if loop.index == 9 %}
+      <div class="likert-row">
+        <div class="likert-question">
+          <span class="q-num"></span> This is an attention check. Please select 4 to continue.
+        </div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Not at all</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="attention_check_instruction" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Extremely</span>
+        </div>
+      </div>
+      {% endif %}
       {% endfor %}
+
+      <div class="likert-row">
+        <div class="likert-question">
+          <span class="q-num">19.</span> Strong sensory input rarely overwhelms me.
+        </div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Not at all</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="hsps_reverse_1" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Extremely</span>
+        </div>
+      </div>
+
+      <div class="likert-row">
+        <div class="likert-question">
+          <span class="q-num">20.</span> I am not easily startled by unexpected sounds or events.
+        </div>
+        <div class="likert-scale-row">
+          <span class="scale-anchor">Not at all</span>
+          <div class="likert-options">
+            {% for n in range(1, 8) %}
+            <label class="likert-option">
+              <input type="radio" name="hsps_reverse_13" value="{{ n }}" required />
+              <span class="radio-custom"></span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="scale-anchor right">Extremely</span>
+        </div>
+      </div>
+
     </section>
 
     <!-- ── Section 2: BFI-44 ──────────────────────────────────────────── -->

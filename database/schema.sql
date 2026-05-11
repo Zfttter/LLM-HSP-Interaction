@@ -223,6 +223,33 @@ $$;
 -- ALTER TABLE participants DROP COLUMN IF EXISTS ai_prediction_rationale;
 
 
+-- ── voice_turns (primary voice conversation data) ───────────────────────────
+CREATE TABLE IF NOT EXISTS voice_turns (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    participant_id      UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+    session_id          TEXT,
+    turn_number         INT NOT NULL,           -- 1 = intro, 2-5 = story, 6 = closing
+    whisper_transcript  TEXT,                   -- STT transcript of participant's audio
+    llm_response_text   TEXT,                   -- AI text response
+    audio_file_url      TEXT,                   -- path in voice-recordings bucket
+    tts_voice_used      TEXT,                   -- nova | onyx | alloy
+    platform            TEXT,                   -- assigned LLM platform
+    hsp_condition       TEXT,
+    topic               TEXT,
+    response_time_ms    INT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_turns_participant ON voice_turns(participant_id);
+
+
+-- ── Migration: attention checks (run once in Supabase SQL Editor) ────────────
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS attention_check_instruction INT;
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS hsps_reverse_1              INT;
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS hsps_reverse_13             INT;
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS attention_failed            BOOLEAN NOT NULL DEFAULT FALSE;
+
+
 -- ── Row-level security (optional, recommended for production) ────────────────
 -- Enable RLS and restrict direct table access so only the service role
 -- (used by the backend) can read/write data.

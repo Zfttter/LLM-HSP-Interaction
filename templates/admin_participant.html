@@ -274,6 +274,35 @@ body {
 .diff-amber  { color: #d97706; font-weight: 600; }
 .diff-orange { color: #ea580c; font-weight: 600; }
 
+/* ── Audio playback ── */
+.audio-play-btn {
+  background: #3b82f6;
+  border: none;
+  color: #fff;
+  padding: 2px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  margin-left: auto;
+  transition: background 0.15s;
+}
+.audio-play-btn:hover:not(:disabled) { background: #2563eb; }
+.audio-play-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Short transcript warning ── */
+.warn-short { color: #dc2626 !important; font-weight: 700; }
+.warn-label {
+  display: inline-block;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
 /* ── Loading ── */
 .loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; }
 .error-msg { color: #dc2626; padding: 20px; }
@@ -313,6 +342,7 @@ const TOPIC_SHORT = {
   "social_anxiety": "Social Anxiety", "rumination": "Rumination",
   "anticipatory_anxiety": "Anticipatory Anxiety",
 };
+const VOICE_LABEL = { "nova": "Voice 1", "onyx": "Voice 2", "alloy": "Voice 3" };
 
 let pData = null;
 
@@ -374,6 +404,9 @@ function renderLeft(p) {
     drow("Ethnicity",       esc(p.race || "—")),
     drow("AI Usage",       esc(p.ai_usage_frequency || "—")),
     drow("Self MBTI",      p.self_mbti ? `<strong>${esc(p.self_mbti)}</strong>` : "—"),
+    "<hr style='border:none;border-top:1px solid #f1f5f9;margin:6px 0'>",
+    drow("Voice Selected", p.tts_voice ? `<strong>${esc(VOICE_LABEL[p.tts_voice] || p.tts_voice)}</strong>` : "—"),
+    drow("Turns Completed",p.turns_completed != null ? `${p.turns_completed} / 6` : "—"),
   ].join(""));
 
   // ── HSPS ──────────────────────────────────────────────────────────────────
@@ -507,53 +540,83 @@ function renderLeft(p) {
   document.getElementById("left-panel").innerHTML = h;
 }
 
-// ── Right panel — conversation ─────────────────────────────────────────────
+// ── Right panel — voice turns ──────────────────────────────────────────────
 function renderRight(p) {
-  const conv = p.conversation || [];
-  if (conv.length === 0) {
+  const turns = p.voice_turns || [];
+  if (turns.length === 0) {
     document.getElementById("right-panel").innerHTML =
-      `<div class="loading">No conversation recorded yet.</div>`;
+      `<div class="loading">No voice turns recorded yet.</div>`;
     return;
   }
 
+  const voiceLabel = VOICE_LABEL[p.tts_voice] || p.tts_voice || "Unknown";
+  const plat  = PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "?";
+  const topic = TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "?";
+
   let h = `<div style="font-size:11px;color:#94a3b8;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
-    Conversation · ${conv.length} rounds · ${(PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "?")} · ${(TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "?")}
+    Voice Turns &nbsp;·&nbsp; ${turns.length} turns &nbsp;·&nbsp; ${esc(plat)} &nbsp;·&nbsp; ${esc(topic)} &nbsp;·&nbsp; ${esc(voiceLabel)}
   </div>`;
 
-  conv.forEach(round => {
-    const rNum = round.round_number;
-    const label = rNum === 0 ? "Intro" : `Round ${rNum}`;
-    const wc = round.user_message_chars
-      ? `${countWords(round.user_message)} words · ${round.user_message_chars} chars`
-      : `${countWords(round.user_message)} words`;
-    const rt = round.response_time_ms
-      ? `${(round.response_time_ms / 1000).toFixed(1)}s`
+  turns.forEach(turn => {
+    const tNum = turn.turn_number;
+    const label = tNum === 1 ? "Intro" : tNum === 6 ? "Closing" : `Turn ${tNum - 1}`;
+
+    const transcript = turn.whisper_transcript || "";
+    const wc = transcript.trim() ? countWords(transcript) : 0;
+    const shortWarn = wc > 0 && wc < 10;
+    const wcText = wc ? `${wc} word${wc !== 1 ? "s" : ""}` : "no transcript";
+
+    const rt = turn.response_time_ms ? `${(turn.response_time_ms / 1000).toFixed(1)}s` : "";
+
+    const audioPath = turn.audio_file_path || turn.audio_file_url || "";
+    const audioBtn = audioPath
+      ? `<button class="audio-play-btn" onclick="playAudio('${audioPath.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}', this)">▶ Play</button>`
       : "";
-    const ts = round.timestamp ? new Date(round.timestamp).toLocaleTimeString() : "";
 
     h += `<div class="conv-round">
       <div class="conv-round-header">
         ${esc(label)}
-        <span style="color:#94a3b8;font-weight:400">${ts}</span>
+        ${audioBtn}
       </div>
       <div class="conv-turn turn-user">
         <div class="conv-speaker spk-user">
-          👤 Participant
-          <span class="conv-meta">${esc(wc)}</span>
+          🎙 Participant
+          <span class="conv-meta${shortWarn ? " warn-short" : ""}">${wcText}</span>
+          ${shortWarn ? '<span class="warn-label">⚠ short</span>' : ""}
         </div>
-        <div class="conv-text">${esc(round.user_message)}</div>
+        <div class="conv-text">${transcript ? esc(transcript) : '<em style="color:#94a3b8">No transcript recorded</em>'}</div>
       </div>
       <div class="conv-turn turn-ai">
         <div class="conv-speaker spk-ai">
           🤖 Sage
           ${rt ? `<span class="conv-meta">${esc(rt)}</span>` : ""}
         </div>
-        <div class="conv-text">${esc(round.ai_response)}</div>
+        <div class="conv-text">${turn.llm_response_text ? esc(turn.llm_response_text) : '<em style="color:#94a3b8">No response recorded</em>'}</div>
       </div>
     </div>`;
   });
 
   document.getElementById("right-panel").innerHTML = h;
+}
+
+async function playAudio(path, btn) {
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const res  = await fetch(`/admin/api/signed-url?path=${encodeURIComponent(path)}&key=${encodeURIComponent(ADMIN_KEY)}`);
+    const data = await res.json();
+    if (data.url) {
+      const audio = new Audio(data.url);
+      audio.play();
+      btn.textContent = "▶ Play";
+    } else {
+      btn.textContent = "✕";
+    }
+  } catch (e) {
+    btn.textContent = "✕";
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

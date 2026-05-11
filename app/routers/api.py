@@ -84,6 +84,10 @@ async def submit_survey(request: Request):
         **{f"bfi_{i}": fi(f"bfi_{i}") for i in range(1, 45)},
     }
 
+    attention_check_instruction = fi("attention_check_instruction")
+    hsps_reverse_1  = fi("hsps_reverse_1")
+    hsps_reverse_13 = fi("hsps_reverse_13")
+
     age = fi("age")
     gender = str(form.get("gender", ""))
     native_english = str(form.get("native_english", "no"))
@@ -107,6 +111,13 @@ async def submit_survey(request: Request):
     # Exclusion check
     excluded, reason = check_exclusion(age, native_english, ai_usage)
 
+    # Attention check
+    attention_failed = (
+        attention_check_instruction != 4
+        or abs(raw["hsps_1"]  - (8 - hsps_reverse_1))  >= 5
+        or abs(raw["hsps_13"] - (8 - hsps_reverse_13)) >= 5
+    )
+
     survey_data = {
         "hsps_score": hsps_score,
         "hsps_responses": {f"hsps_{i}": raw[f"hsps_{i}"] for i in range(1, 19)},
@@ -121,6 +132,10 @@ async def submit_survey(request: Request):
         "exclusion_reason": reason,
         "self_mbti": self_mbti,
         "survey_completed": True,
+        "attention_check_instruction": attention_check_instruction,
+        "hsps_reverse_1":              hsps_reverse_1,
+        "hsps_reverse_13":             hsps_reverse_13,
+        "attention_failed":            attention_failed,
     }
 
     db_.save_survey(participant["id"], survey_data)
@@ -316,7 +331,7 @@ async def process_turn(request: Request):
         "whisper_transcript": transcript,
         "llm_response_text":  ai_text,
         "audio_file_url":     audio_url,
-        "tts_voice_used":     "nova",
+        "tts_voice_used":     tts_voice,
         "platform":           platform,
         "hsp_condition":      hsp_condition,
         "topic":              topic,
