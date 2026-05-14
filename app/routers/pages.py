@@ -44,8 +44,9 @@ def landing(request: Request, prolific_id: str = ""):
             return _redirect(_next_step(existing))
 
     return templates.TemplateResponse(
+        request,
         "index.html",
-        {"request": request, "prolific_id": effective_id},
+        {"prolific_id": effective_id},
     )
 
 
@@ -58,9 +59,9 @@ def survey(request: Request):
         return _redirect("/")
 
     return templates.TemplateResponse(
+        request,
         "survey.html",
         {
-            "request": request,
             "hsps_items": HSPS_ITEMS,
             "bfi_items": BFI_ITEMS,
             "hsps_labels": HSPS_LABELS,
@@ -73,7 +74,7 @@ def survey(request: Request):
 def screened_out(request: Request):
     participant = _get_participant(request)
     reason = participant.get("exclusion_reason", "") if participant else ""
-    return templates.TemplateResponse("screened_out.html", {"request": request, "reason": reason})
+    return templates.TemplateResponse(request, "screened_out.html", {"reason": reason})
 
 
 @router.get("/intro", response_class=HTMLResponse)
@@ -90,9 +91,9 @@ def intro(request: Request):
     topic = participant.get("assigned_topic", "")
 
     return templates.TemplateResponse(
+        request,
         "intro.html",
         {
-            "request": request,
             "topic": TOPIC_DISPLAY.get(topic, topic),
             "topic_prompt": TOPIC_PROMPTS.get(topic, ""),
         },
@@ -118,9 +119,9 @@ def chat(request: Request):
     rounds_done = sum(1 for r in history if r["round_number"] > 0)
 
     return templates.TemplateResponse(
+        request,
         "chat.html",
         {
-            "request": request,
             "topic": TOPIC_DISPLAY.get(topic, topic),
             "topic_prompt": TOPIC_PROMPTS.get(topic, ""),
             "history": [r for r in history if r["round_number"] > 0],
@@ -143,8 +144,9 @@ def post_survey(request: Request):
     from app.config import POST_SURVEY_LABELS, AI_NAME
 
     return templates.TemplateResponse(
+        request,
         "post_survey.html",
-        {"request": request, "labels": POST_SURVEY_LABELS, "ai_name": AI_NAME},
+        {"labels": POST_SURVEY_LABELS, "ai_name": AI_NAME},
     )
 
 
@@ -211,9 +213,9 @@ def complete(request: Request):
                              "pct": pct, "level": lvl, "cls": cls, "desc": desc})
 
     return templates.TemplateResponse(
+        request,
         "complete.html",
         {
-            "request":       request,
             "completion_code": code,
             "hsps_score":    hsps_score,
             "hsps_pct":      hsps_pct,

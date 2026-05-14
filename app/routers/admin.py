@@ -31,8 +31,9 @@ def admin_dashboard(request: Request, key: str = ""):
     if not _check_key(key):
         return HTMLResponse("<h1>403 Forbidden</h1>", status_code=403)
     return templates.TemplateResponse(
+        request,
         "admin.html",
-        {"request": request, "admin_key": key},
+        {"admin_key": key},
     )
 
 
@@ -128,8 +129,9 @@ def admin_participant_page(request: Request, participant_id: str, key: str = "")
     if not _check_key(key):
         return HTMLResponse("<h1>403 Forbidden</h1>", status_code=403)
     return templates.TemplateResponse(
+        request,
         "admin_participant.html",
-        {"request": request, "participant_id": participant_id, "admin_key": key},
+        {"participant_id": participant_id, "admin_key": key},
     )
 
 
