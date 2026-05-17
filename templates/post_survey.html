@@ -393,6 +393,21 @@
       ></textarea>
     </div>
 
+    <!-- ── Data Sharing Consent ───────────────────────────────────────────── -->
+    <div class="post-section">
+      <div class="post-section-header">Data Sharing Consent</div>
+      <p class="post-section-instruction">
+        The conversation data collected in this study (including your chat transcript and survey responses) contains no personally identifiable information. Would you be willing to allow this anonymized data to be made publicly available for academic research purposes only?
+      </p>
+      <div class="radio-group vertical">
+        <label class="radio-inline"><input type="radio" name="data_sharing_consent" value="yes" required /> Yes, I consent to my anonymized data being shared publicly for academic research.</label>
+        <label class="radio-inline"><input type="radio" name="data_sharing_consent" value="no" /> No, I prefer my data to remain private (it will still be used in this study).</label>
+      </div>
+      <p class="post-section-instruction" style="margin-top:0.75rem; font-style:italic;">
+        Your choice will not affect your eligibility for compensation or how your data is used within this study.
+      </p>
+    </div>
+
     <div class="form-actions">
       <button type="submit" class="btn btn-primary btn-large" id="postSubmitBtn" disabled>
         Submit and get completion code &rarr;
@@ -413,7 +428,7 @@ const requiredRadios = [
   "affective_empathy_1", "affective_empathy_2", "cognitive_empathy",
   "associative_empathy", "emotional_responsiveness", "empathic_accuracy",
   "implicit_understanding", "closeness_ios", "emotional_relief",
-  "perceived_sycophancy"
+  "perceived_sycophancy", "data_sharing_consent"
 ];
 
 function allAnswered() {

@@ -12,6 +12,10 @@
   <p class="exclusion-reason">Reason: this study requires native English speakers.</p>
   {% elif reason == "frequent_ai_usage" %}
   <p class="exclusion-reason">Reason: participants who frequently use AI for emotional conversations are not eligible.</p>
+  {% elif reason == "mental_health_screening" %}
+  <p class="exclusion-reason">
+    Reason: for participant safety, this study is not suitable for individuals with a history of severe psychiatric conditions or who are currently experiencing a mental health crisis. If you are in distress, please reach out for support — Samaritans: 116 123, Mind: 0300 123 3393, or NHS 111.
+  </p>
   {% else %}
   <p class="exclusion-reason">You may have been excluded based on age, language, or AI usage criteria.</p>
   {% endif %}

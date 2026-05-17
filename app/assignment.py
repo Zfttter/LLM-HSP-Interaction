@@ -44,10 +44,12 @@ def score_bfi(responses: dict) -> dict:
     }
 
 
-def check_exclusion(age: int, native_english: str, ai_usage: str) -> tuple[bool, str]:
+def check_exclusion(age: int, native_english: str, ai_usage: str,
+                    mental_health_screening: str = "no") -> tuple[bool, str]:
     """
     Returns (excluded: bool, reason: str).
-    Excluded if: age < 18, non-native English, or frequent AI usage.
+    Excluded if: age < 18, non-native English, frequent AI usage,
+    or severe psychiatric condition / current mental health crisis.
     """
     if age < 18:
         return True, "age_under_18"
@@ -55,4 +57,6 @@ def check_exclusion(age: int, native_english: str, ai_usage: str) -> tuple[bool,
         return True, "non_native_english"
     if ai_usage in ("often", "very_often"):
         return True, "frequent_ai_usage"
+    if mental_health_screening.lower() == "yes":
+        return True, "mental_health_screening"
     return False, ""

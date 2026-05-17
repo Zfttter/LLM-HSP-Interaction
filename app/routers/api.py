@@ -94,6 +94,9 @@ async def submit_survey(request: Request):
     ai_usage = str(form.get("ai_usage", "never"))
     country = str(form.get("country", ""))
     race = str(form.get("race", ""))
+    financial_worry = str(form.get("financial_worry", ""))
+    education = str(form.get("education", ""))
+    mental_health_screening = str(form.get("mental_health_screening", "no"))
     self_mbti = str(form.get("self_mbti", "")).strip().upper() or None
 
     # Validate ranges
@@ -109,7 +112,7 @@ async def submit_survey(request: Request):
     bfi_scores = score_bfi(raw)
 
     # Exclusion check
-    excluded, reason = check_exclusion(age, native_english, ai_usage)
+    excluded, reason = check_exclusion(age, native_english, ai_usage, mental_health_screening)
 
     # Attention check
     attention_failed = (
@@ -128,6 +131,9 @@ async def submit_survey(request: Request):
         "ai_usage_frequency": ai_usage,
         "country": country,
         "race": race,
+        "financial_worry": financial_worry,
+        "education": education,
+        "mental_health_screening": mental_health_screening,
         "excluded": excluded,
         "exclusion_reason": reason,
         "self_mbti": self_mbti,
@@ -378,6 +384,7 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
     emotional_relief         = fi("emotional_relief")
     perceived_sycophancy     = fi("perceived_sycophancy")
     mbti_guess               = str(form.get("mbti_guess", "")).strip()
+    data_sharing_consent     = str(form.get("data_sharing_consent", "")) == "yes"
 
     # Validate 1-7 fields
     for val in (general_empathy, satisfaction, trust, conversation_quality,
@@ -408,6 +415,8 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
         "perceived_sycophancy":     perceived_sycophancy,
         "mbti_guess":               mbti_guess or None,
     })
+
+    db_.update_participant(participant["id"], {"data_sharing_consent": data_sharing_consent})
 
     code = db_.finalize_participant(participant["id"])
     request.session["completion_code"] = code

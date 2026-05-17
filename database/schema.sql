@@ -249,6 +249,16 @@ ALTER TABLE participants ADD COLUMN IF NOT EXISTS hsps_reverse_1              IN
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS hsps_reverse_13             INT;
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS attention_failed            BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- ── Migration: financial worry + education (run once in Supabase SQL Editor) ──
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS financial_worry             TEXT;
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS education                   TEXT;
+
+-- ── Migration: mental health screening (run once in Supabase SQL Editor) ─────
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS mental_health_screening     TEXT;
+
+-- ── Migration: data sharing consent (run once in Supabase SQL Editor) ────────
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS data_sharing_consent        BOOLEAN;
+
 
 -- ── Row-level security (optional, recommended for production) ────────────────
 -- Enable RLS and restrict direct table access so only the service role

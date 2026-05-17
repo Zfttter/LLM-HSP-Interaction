@@ -269,7 +269,33 @@
       </div>
 
       <div class="form-group" style="margin-bottom:1.75rem;">
-        <label for="self_mbti">7. What is your MBTI personality type? <span class="optional-label">(optional — leave blank if unsure)</span></label>
+        <label>7. How often do you worry about having enough money to meet your needs?</label>
+        <div class="radio-group vertical">
+          <label class="radio-inline"><input type="radio" name="financial_worry" value="never" required /> Never</label>
+          <label class="radio-inline"><input type="radio" name="financial_worry" value="rarely" /> Rarely</label>
+          <label class="radio-inline"><input type="radio" name="financial_worry" value="sometimes" /> Sometimes</label>
+          <label class="radio-inline"><input type="radio" name="financial_worry" value="often" /> Often</label>
+          <label class="radio-inline"><input type="radio" name="financial_worry" value="always" /> Always</label>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label for="education">8. What is the highest level of education you have completed?</label>
+        <select id="education" name="education" class="form-control form-control-sm" required>
+          <option value="" disabled selected>— Please select —</option>
+          <option value="no_formal">No formal education</option>
+          <option value="primary">Primary school (or equivalent)</option>
+          <option value="secondary">Secondary school / High school (or equivalent)</option>
+          <option value="vocational">Vocational / Technical training (or equivalent)</option>
+          <option value="bachelors">Bachelor's degree (or equivalent)</option>
+          <option value="masters">Master's degree (or equivalent)</option>
+          <option value="doctoral">Doctoral degree (PhD or equivalent)</option>
+          <option value="prefer_not_to_say">Prefer not to say</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label for="self_mbti">9. What is your MBTI personality type? <span class="optional-label">(optional — leave blank if unsure)</span></label>
         <div class="mbti-guide">
           <p class="mbti-guide-intro">MBTI describes personality across four dimensions. Pick one letter from each pair to form a 4-letter type (e.g. <em>INFJ</em>, <em>ENFP</em>, <em>ISTP</em>):</p>
           <div class="mbti-dims">
@@ -300,6 +326,14 @@
           placeholder="e.g. INFJ"
           style="max-width: 160px; text-transform: uppercase;"
         />
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.75rem;">
+        <label>10. Have you ever been diagnosed with a severe psychiatric condition (e.g., schizophrenia, bipolar disorder, borderline personality disorder, or psychosis), or are you currently experiencing a mental health crisis?</label>
+        <div class="radio-group">
+          <label class="radio-inline"><input type="radio" name="mental_health_screening" value="no" required /> No</label>
+          <label class="radio-inline"><input type="radio" name="mental_health_screening" value="yes" /> Yes</label>
+        </div>
       </div>
     </section>
 
