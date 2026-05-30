@@ -1669,8 +1669,8 @@ p  { margin-bottom: 0.75rem; }
   background: #fff; border: 1px solid #C0DD97; border-radius: 12px;
   overflow: hidden; box-shadow: 0 1px 6px rgba(59,109,17,0.07);
 }
-/* Static (non-collapsible) variant — shrink to content */
-.sage-topic-box--static { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; max-height: 380px; overflow: hidden; }
+/* Static (non-collapsible) variant */
+.sage-topic-box--static { flex: 2; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .sage-topic-header {
   padding: 0.65rem 1rem; font-size: 0.84rem; font-weight: 500;
   color: #3B6D11; background: #f4f9ee; border-bottom: 1px solid #C0DD97;
@@ -1678,7 +1678,7 @@ p  { margin-bottom: 0.75rem; }
 }
 .sage-topic-body {
   padding: 0.85rem 1rem; font-size: 0.83rem; color: #444; line-height: 1.7; font-weight: 300;
-  overflow-y: auto;
+  overflow-y: auto; flex: 1; min-height: 0;
 }
 .sage-topic-body strong {
   display: block; color: #2a5000; font-weight: 500; margin-bottom: 0.6rem;
@@ -1828,29 +1828,6 @@ p  { margin-bottom: 0.75rem; }
   background: #d4e8b8; transition: background 0.35s ease;
 }
 .sage-dot-done { background: #3B6D11; }
-
-/* Overview card (3-topic agenda) */
-.sage-overview-card { padding: 0.65rem 0.85rem; }
-.sage-overview-rows {
-  display: flex; flex-direction: column; gap: 0.35rem;
-  margin-top: 0.3rem;
-}
-.sage-overview-row {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.2rem 0.4rem; border-radius: 6px;
-  transition: background 0.2s ease;
-}
-.sage-overview-topic-name {
-  font-size: 0.75rem; color: #8aab68; flex: 1; text-align: left;
-  font-weight: 300; line-height: 1.2;
-}
-.sage-overview-row .sage-dots-row { gap: 4px; }
-.sage-overview-row .sage-dot { width: 6px; height: 6px; }
-
-.sage-overview-row.current { background: #EAF3DE; }
-.sage-overview-row.current .sage-overview-topic-name {
-  color: #3B6D11; font-weight: 600;
-}
 
 /* ── Modal ───────────────────────────────────────────────────────────────── */
 .modal {
