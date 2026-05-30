@@ -1683,12 +1683,12 @@ p  { margin-bottom: 0.75rem; }
 }
 
 .sage-topic-header {
-  padding: 0.45rem 0.3rem; font-size: 0.78rem; font-weight: 500;
+  padding: 0.2rem 0.15rem; font-size: 0.78rem; font-weight: 500;
   color: #3B6D11; background: #f4f9ee; border-bottom: 1px solid #C0DD97;
   flex-shrink: 0;
 }
 .sage-topic-body {
-  padding: 0.55rem 0.3rem; font-size: 0.78rem; color: #444; line-height: 1.6; font-weight: 300;
+  padding: 0.25rem 0.15rem; font-size: 0.78rem; color: #444; line-height: 1.6; font-weight: 300;
   overflow-y: auto; flex: 1; min-height: 0;
 }
 
