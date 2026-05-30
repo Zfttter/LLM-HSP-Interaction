@@ -1680,6 +1680,8 @@ p  { margin-bottom: 0.75rem; }
   background: #f7faf2;
   box-shadow: none;
   border: 2px solid #3B6D11;
+  padding: 0;       /* overrides .topic-prompt-box's 1.25rem */
+  margin: 0;        /* overrides .topic-prompt-box's 1rem 0 */
 }
 
 .sage-topic-header {
