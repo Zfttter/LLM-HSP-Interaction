@@ -198,6 +198,7 @@ function continueAfterTransition() {
   // Reveal the next topic prompt in the sidebar
   const nextTopicIdx = Math.floor(currentTurnNum / PER_TOPIC_TURNS); // upcoming topic 0-indexed
   showTopicPromptForIndex(nextTopicIdx);
+  updateTopicIndicator(nextTopicIdx);
 
   // Reset the progress dots for the new topic
   const numEl = document.getElementById("currentRound");
@@ -206,6 +207,13 @@ function continueAfterTransition() {
 
   setState("IDLE");
   showPTT();
+}
+
+function updateTopicIndicator(idx) {
+  const posEl  = document.getElementById("chatTopicPosition");
+  const nameEl = document.getElementById("chatTopicName");
+  if (posEl)  posEl.textContent  = `Topic ${idx + 1} / ${NUM_TOPICS}`;
+  if (nameEl) nameEl.textContent = TOPIC_NAMES[idx] || "";
 }
 
 // ── Audio playback ────────────────────────────────────────────────────────────

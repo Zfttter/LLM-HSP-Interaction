@@ -1833,6 +1833,23 @@ p  { margin-bottom: 0.75rem; }
 }
 .sage-dot-done { background: #3B6D11; }
 
+/* Topic indicator at top of chat area */
+.chat-topic-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.88rem;
+  color: #3B6D11;
+  font-weight: 500;
+  background: #f4f9ee;
+  border-bottom: 1px solid #C0DD97;
+  letter-spacing: 0.01em;
+}
+.chat-topic-divider { color: #8aab68; font-weight: 400; }
+#chatTopicName { font-weight: 600; }
+
 /* ── Modal ───────────────────────────────────────────────────────────────── */
 .modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);

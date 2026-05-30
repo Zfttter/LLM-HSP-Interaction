@@ -90,6 +90,13 @@
       </div>
     </div>
 
+    <!-- Topic indicator — current topic name + position -->
+    <div class="chat-topic-indicator" id="chatTopicIndicator">
+      <span id="chatTopicPosition">Topic 1 / {{ num_topics }}</span>
+      <span class="chat-topic-divider">·</span>
+      <span id="chatTopicName">{{ ordered_topics[0].name }}</span>
+    </div>
+
     <!-- Status bar — centered, top of chat area -->
     <div class="chat-status-bar">
       <span id="statusDot" class="sage-status-dot idle"></span>
