@@ -1683,12 +1683,12 @@ p  { margin-bottom: 0.75rem; }
 }
 
 .sage-topic-header {
-  padding: 0.65rem 1rem; font-size: 0.84rem; font-weight: 500;
+  padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 500;
   color: #3B6D11; background: #f4f9ee; border-bottom: 1px solid #C0DD97;
   flex-shrink: 0;
 }
 .sage-topic-body {
-  padding: 0.85rem 1rem; font-size: 0.83rem; color: #444; line-height: 1.7; font-weight: 300;
+  padding: 0.55rem 0.6rem; font-size: 0.78rem; color: #444; line-height: 1.6; font-weight: 300;
   overflow-y: auto; flex: 1; min-height: 0;
 }
 
@@ -1701,9 +1701,9 @@ p  { margin-bottom: 0.75rem; }
 
 .sage-topic-prompt {
   white-space: pre-line;
-  font-size: 0.95rem;
-  color: #444;
-  line-height: 1.85;
+  font-size: 0.78rem;
+  color: #555;
+  line-height: 1.6;
   margin: 0;
 }
 /* Private scratchpad */
