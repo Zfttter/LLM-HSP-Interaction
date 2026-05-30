@@ -251,15 +251,17 @@ def build_system_prompt(topic_order: str, turn_number: int) -> str:
             "thoughtful follow-up question to help them continue opening up on this topic.\n"
         )
     elif phase == "transition":
-        idx       = topics.index(cur_topic) if cur_topic in topics else 0
-        next_desc = TOPIC_DESCRIPTIONS.get(topics[idx + 1], "") if idx + 1 < len(topics) else ""
+        idx = topics.index(cur_topic) if cur_topic in topics else 0
         body = (
-            f"\nCURRENT PHASE — Transition to topic {idx + 2}/{NUM_TOPICS} (turn {turn_number}):\n"
-            f"This is the last turn for the current topic ({cur_desc}). "
-            "Do NOT ask any follow-up question on this topic. "
-            "Instead: acknowledge what they shared with empathy (1–2 sentences), "
-            f"then gently transition by inviting them to share about the next topic: {next_desc}. "
-            "Make the transition feel natural and warm.\n"
+            f"\nCURRENT PHASE — Closing topic {idx + 1}/{NUM_TOPICS} (turn {turn_number}):\n"
+            f"This is the LAST turn for the current topic ({cur_desc}). "
+            "Do NOT ask any follow-up question. "
+            "Give a warm, substantial closing response (2–3 sentences): "
+            "acknowledge specifically what the participant has shared on this topic, "
+            "offer a brief empathic reflection on the experience they described, "
+            "and signal that this part of the conversation is complete "
+            "(e.g., \"Thank you for trusting me with that.\"). "
+            "Do NOT introduce, name, or hint at the next topic — that will be announced separately afterwards.\n"
         )
     else:  # closing
         body = (

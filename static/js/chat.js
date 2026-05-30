@@ -199,6 +199,16 @@ function continueAfterTransition() {
   const nextTopicIdx = Math.floor(currentTurnNum / PER_TOPIC_TURNS); // upcoming topic 0-indexed
   showTopicPromptForIndex(nextTopicIdx);
 
+  // Move the highlight in the progress card to the upcoming topic + update label
+  document.querySelectorAll(".sage-progress-row").forEach((row) => {
+    const idx = parseInt(row.dataset.topicIdx, 10);
+    row.classList.toggle("current", idx === nextTopicIdx);
+  });
+  const label = document.getElementById("progressLabel");
+  if (label) {
+    label.textContent = `Topic ${nextTopicIdx + 1}/${NUM_TOPICS} · Starting…`;
+  }
+
   setState("IDLE");
   showPTT();
 }
