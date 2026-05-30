@@ -1683,7 +1683,7 @@ p  { margin-bottom: 0.75rem; }
 }
 
 .sage-topic-header {
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 0.6rem;
   font-size: 1rem;
   font-weight: 600;
   color: #3B6D11;
@@ -1693,7 +1693,7 @@ p  { margin-bottom: 0.75rem; }
 }
 
 .sage-topic-body {
-  padding: 0.85rem 1rem;
+  padding: 0.65rem 0.6rem;
   font-size: 0.95rem;
   color: #333;
   line-height: 1.85;
