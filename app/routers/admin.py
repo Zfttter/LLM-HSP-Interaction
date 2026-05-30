@@ -327,7 +327,7 @@ def export_voice_turns(request: Request):
     p_map = {
         p["id"]: p for p in (
             db_.db().table("participants").select(
-                "id, prolific_id, assigned_platform, assigned_topic, "
+                "id, prolific_id, assigned_platform, assigned_topic_order, "
                 "hsps_score, ai_hsps_score, age, gender, country, "
                 "native_english, ai_usage_frequency, race, self_mbti, "
                 "ai_mbti_type, excluded"
@@ -360,12 +360,12 @@ def export_voice_turns(request: Request):
 
     writer.writerow([
         # Participant
-        "participant_id", "prolific_id", "platform", "topic",
+        "participant_id", "prolific_id", "platform", "topic_order",
         "age", "gender", "country", "native_english", "ai_usage_frequency",
         "race", "self_mbti", "ai_mbti_type", "excluded",
         "hsps_score", "ai_hsps_score",
         # Turn
-        "turn_number", "tts_voice_used",
+        "turn_number", "topic", "tts_voice_used",
         "whisper_transcript", "transcript_word_count",
         "llm_response_text", "response_time_ms", "audio_file_path",
         # Post-survey
@@ -387,7 +387,7 @@ def export_voice_turns(request: Request):
             pid,
             p.get("prolific_id", ""),
             p.get("assigned_platform", ""),
-            p.get("assigned_topic", ""),
+            p.get("assigned_topic_order", ""),
             p.get("age", ""),
             p.get("gender", ""),
             p.get("country", ""),
@@ -400,6 +400,7 @@ def export_voice_turns(request: Request):
             p.get("hsps_score", ""),
             p.get("ai_hsps_score", ""),
             vt.get("turn_number", ""),
+            vt.get("topic", ""),
             vt.get("tts_voice_used", ""),
             transcript,
             words,

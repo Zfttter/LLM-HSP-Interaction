@@ -341,6 +341,7 @@ const PLATFORM_SHORT = {
 const TOPIC_SHORT = {
   "social_anxiety": "Social Anxiety", "rumination": "Rumination",
   "anticipatory_anxiety": "Anticipatory Anxiety",
+  "ABC": "ABC", "BCA": "BCA", "CAB": "CAB",
 };
 const VOICE_LABEL = { "nova": "Voice 1", "onyx": "Voice 2", "alloy": "Voice 3" };
 
@@ -371,7 +372,7 @@ function navigate(dir) {
 function renderHeader(p) {
   document.getElementById("h-pid").textContent = p.prolific_id || p.id;
   const plat  = PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "—";
-  const topic = TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "—";
+  const topic = TOPIC_SHORT[p.assigned_topic_order] || p.assigned_topic_order || "—";
   document.getElementById("h-cond").textContent = p.assigned_platform ? `${plat} × ${topic}` : "";
   document.getElementById("h-status").innerHTML = statusBadge(p);
 
@@ -392,7 +393,7 @@ function renderLeft(p) {
   h += section("Demographics", [
     drow("Prolific ID",    `<span class="dvalue mono">${esc(p.prolific_id || "—")}</span>`),
     drow("Platform",       esc(PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "—")),
-    drow("Topic",          esc(TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "—")),
+    drow("Topic",          esc(TOPIC_SHORT[p.assigned_topic_order] || p.assigned_topic_order || "—")),
     drow("Status",         statusBadge(p)),
     drow("Created",        fmtDate(p.created_at)),
     drow("Completed",      fmtDate(p.post_survey?.completed_at)),
@@ -551,7 +552,7 @@ function renderRight(p) {
 
   const voiceLabel = VOICE_LABEL[p.tts_voice] || p.tts_voice || "Unknown";
   const plat  = PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "?";
-  const topic = TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "?";
+  const topic = TOPIC_SHORT[p.assigned_topic_order] || p.assigned_topic_order || "?";
 
   let h = `<div style="font-size:11px;color:#94a3b8;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
     Voice Turns &nbsp;·&nbsp; ${turns.length} turns &nbsp;·&nbsp; ${esc(plat)} &nbsp;·&nbsp; ${esc(topic)} &nbsp;·&nbsp; ${esc(voiceLabel)}

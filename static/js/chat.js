@@ -10,7 +10,7 @@ let recorder        = null;
 let audioChunks     = [];
 let currentAudio    = null;
 let currentTurnNum  = 0;   // updated after each server response
-let storyRoundsDone = 0;   // story turns completed (turn_number - INTRO_TURNS)
+let pendingTransition = false; // true while we're showing the topic-transition modal
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   requestMicPermission().then(() => {
@@ -135,16 +135,14 @@ async function submitTurn() {
   if (state !== "PREVIEW") return;
   setState("PROCESSING");
 
-  const transcript  = document.getElementById("transcriptText").value.trim();
-  const thisTurn    = currentTurnNum + 1;
-  const storyRound  = thisTurn > 2 ? thisTurn - 2 : null;
-  appendMessage("user", transcript, storyRound);
+  const transcript = document.getElementById("transcriptText").value.trim();
+  const thisTurn   = currentTurnNum + 1;
+  appendMessage("user", transcript, labelForTurn(thisTurn));
   hideInputArea();
   showTypingIndicator();
 
-  // Update counter immediately when user responds (not after AI reply)
-  storyRoundsDone = Math.max(0, thisTurn - 1);
-  updateRoundDisplay();
+  // Mark the user's just-submitted turn as done in the segmented progress
+  updateProgress(thisTurn);
 
   try {
     const res  = await fetch("/api/turn", { method: "POST" });
@@ -153,9 +151,16 @@ async function submitTurn() {
 
     removeTypingIndicator();
     appendMessage("ai", data.ai_text, null);
-    currentTurnNum  = data.turn_number;
-    await playAudio(data.tts_b64, data.is_final ? showCompletionModal : null);
+    currentTurnNum = data.turn_number;
 
+    let afterAudio = null;
+    if (data.is_final) {
+      afterAudio = showCompletionModal;
+    } else if (data.is_topic_transition) {
+      afterAudio = () => showTransitionModal(data.turn_number);
+    }
+
+    await playAudio(data.tts_b64, afterAudio);
     if (data.is_final) return;
   } catch (err) {
     removeTypingIndicator();
@@ -163,6 +168,39 @@ async function submitTurn() {
     setState("IDLE");
     showPTT();
   }
+}
+
+// ── Topic transition modal ────────────────────────────────────────────────────
+function showTransitionModal(completedTurn) {
+  // completedTurn is the LAST turn of a non-final topic (e.g. 6 or 11)
+  // The next topic starts on completedTurn + 1
+  const nextTopicIdx = Math.floor((completedTurn - 1) / PER_TOPIC_TURNS); // 0-indexed for upcoming topic
+  const nextName     = TOPIC_NAMES[nextTopicIdx] || "the next topic";
+
+  document.getElementById("transitionBody").textContent =
+    `You're done with this topic. When you're ready, we'll move on to: ${nextName}.`;
+
+  hideInputArea();
+  pendingTransition = true;
+
+  const modal = document.getElementById("transitionModal");
+  if (modal) modal.style.display = "flex";
+
+  const btn = document.getElementById("transitionContinueBtn");
+  if (btn) btn.onclick = continueAfterTransition;
+}
+
+function continueAfterTransition() {
+  const modal = document.getElementById("transitionModal");
+  if (modal) modal.style.display = "none";
+  pendingTransition = false;
+
+  // Reveal the next topic prompt in the sidebar
+  const nextTopicIdx = Math.floor(currentTurnNum / PER_TOPIC_TURNS); // upcoming topic 0-indexed
+  showTopicPromptForIndex(nextTopicIdx);
+
+  setState("IDLE");
+  showPTT();
 }
 
 // ── Audio playback ────────────────────────────────────────────────────────────
@@ -178,20 +216,28 @@ function playAudio(b64mp3, onEnded) {
     currentAudio.onended = () => {
       URL.revokeObjectURL(url);
       currentAudio = null;
-      setState("IDLE");
-      showPTT();
+      if (onEnded) {
+        // onEnded handler (transition / completion) is responsible for what comes next
+        onEnded();
+      } else {
+        setState("IDLE");
+        showPTT();
+      }
       resolve();
-      if (onEnded) onEnded();
     };
     currentAudio.onerror = () => {
       URL.revokeObjectURL(url);
-      setState("IDLE");
-      showPTT();
+      if (!onEnded) {
+        setState("IDLE");
+        showPTT();
+      }
       resolve();
     };
     currentAudio.play().catch(() => {
-      setState("IDLE");
-      showPTT();
+      if (!onEnded) {
+        setState("IDLE");
+        showPTT();
+      }
       resolve();
     });
   });
@@ -313,12 +359,47 @@ function appendMessage(role, text, roundNum) {
   }
 }
 
-function updateRoundDisplay() {
-  const el = document.getElementById("currentRound");
-  if (el) el.textContent = storyRoundsDone;
-  document.querySelectorAll(".sage-dot").forEach(function (dot, i) {
-    dot.classList.toggle("sage-dot-done", i < storyRoundsDone);
+// ── Segmented progress (3 topics × PER_TOPIC_TURNS) ───────────────────────────
+function updateProgress(justCompletedTurn) {
+  // justCompletedTurn = the turn number the participant just sent (1..MAX_TURNS)
+  const label = document.getElementById("progressLabel");
+  if (justCompletedTurn <= 1) {
+    if (label) label.textContent = "Introduction";
+    return;
+  }
+  const topicIdx     = Math.floor((justCompletedTurn - 2) / PER_TOPIC_TURNS);     // 0..NUM_TOPICS-1
+  const turnInTopic  = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;           // 1..PER_TOPIC_TURNS
+
+  if (label) {
+    label.textContent =
+      `Topic ${topicIdx + 1}/${NUM_TOPICS} · Turn ${turnInTopic}/${PER_TOPIC_TURNS}`;
+  }
+
+  document.querySelectorAll(".sage-progress-row").forEach((row) => {
+    const idx = parseInt(row.dataset.topicIdx, 10);
+    const dots = row.querySelectorAll(".sage-dot");
+    dots.forEach((dot, i) => {
+      let done = false;
+      if (idx < topicIdx)  done = true;
+      else if (idx === topicIdx) done = i < turnInTopic;
+      dot.classList.toggle("sage-dot-done", done);
+    });
   });
+}
+
+function showTopicPromptForIndex(idx) {
+  document.querySelectorAll(".topic-prompt-box").forEach((box) => {
+    const boxIdx = parseInt(box.dataset.topicIdx, 10);
+    box.style.display = (boxIdx === idx) ? "" : "none";
+  });
+}
+
+function labelForTurn(turnNumber) {
+  if (turnNumber <= 1) return null;
+  const topicIdx    = Math.floor((turnNumber - 2) / PER_TOPIC_TURNS);
+  const turnInTopic = ((turnNumber - 2) % PER_TOPIC_TURNS) + 1;
+  const topicName   = TOPIC_NAMES[topicIdx] || "";
+  return `${topicName} · turn ${turnInTopic}`;
 }
 
 function showCompletionModal() {

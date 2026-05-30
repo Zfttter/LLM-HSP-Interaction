@@ -87,16 +87,18 @@ def intro(request: Request):
     if participant.get("intro_completed"):
         return _redirect("/chat")
 
-    from app.config import TOPIC_PROMPTS, TOPIC_DISPLAY
-    topic = participant.get("assigned_topic", "")
+    from app.config import TOPIC_PROMPTS, TOPIC_DISPLAY, TOPIC_ORDERS
+    topic_order = participant.get("assigned_topic_order", "ABC")
+    topics      = TOPIC_ORDERS.get(topic_order, TOPIC_ORDERS["ABC"])
+    ordered_topics = [
+        {"key": t, "name": TOPIC_DISPLAY.get(t, t), "prompt": TOPIC_PROMPTS.get(t, "")}
+        for t in topics
+    ]
 
     return templates.TemplateResponse(
         request,
         "intro.html",
-        {
-            "topic": TOPIC_DISPLAY.get(topic, topic),
-            "topic_prompt": TOPIC_PROMPTS.get(topic, ""),
-        },
+        {"ordered_topics": ordered_topics},
     )
 
 
@@ -112,21 +114,30 @@ def chat(request: Request):
     if participant.get("chat_completed"):
         return _redirect("/post-survey")
 
-    from app.config import TOPIC_PROMPTS, TOPIC_DISPLAY, CONVERSATION_ROUNDS
-    topic = participant.get("assigned_topic", "")
-    history = db_.get_conversation(participant["id"])
-    # Exclude intro (round 0) from display count
-    rounds_done = sum(1 for r in history if r["round_number"] > 0)
+    from app.config import (
+        TOPIC_PROMPTS, TOPIC_DISPLAY, TOPIC_ORDERS,
+        PER_TOPIC_TURNS, NUM_TOPICS,
+    )
+    topic_order = participant.get("assigned_topic_order", "ABC")
+    topics      = TOPIC_ORDERS.get(topic_order, TOPIC_ORDERS["ABC"])
+
+    ordered_topics = [
+        {
+            "key":    t,
+            "name":   TOPIC_DISPLAY.get(t, t),
+            "prompt": TOPIC_PROMPTS.get(t, ""),
+        }
+        for t in topics
+    ]
 
     return templates.TemplateResponse(
         request,
         "chat.html",
         {
-            "topic": TOPIC_DISPLAY.get(topic, topic),
-            "topic_prompt": TOPIC_PROMPTS.get(topic, ""),
-            "history": [r for r in history if r["round_number"] > 0],
-            "rounds_done": rounds_done,
-            "total_rounds": CONVERSATION_ROUNDS,
+            "topic_order":     topic_order,
+            "ordered_topics":  ordered_topics,
+            "per_topic_turns": PER_TOPIC_TURNS,
+            "num_topics":      NUM_TOPICS,
         },
     )
 

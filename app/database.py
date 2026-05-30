@@ -69,19 +69,25 @@ def assign_condition(participant_id: str) -> dict:
         return {
             "condition_id": participant["condition_id"],
             "platform":     participant["assigned_platform"],
-            "topic":        participant["assigned_topic"],
+            "topic_order":  participant.get("assigned_topic_order"),
         }
 
     result = db().rpc("assign_condition_atomic", {}).execute()
     condition = result.data[0]
 
+    # NOTE: the `topic` column in condition_counts now holds the topic-order code
+    # (e.g. "ABC"), not a single topic. Stored in `assigned_topic_order`.
     update_participant(participant_id, {
-        "assigned_platform": condition["platform"],
-        "assigned_topic":    condition["topic"],
-        "condition_id":      condition["condition_id"],
+        "assigned_platform":     condition["platform"],
+        "assigned_topic_order":  condition["topic"],
+        "condition_id":          condition["condition_id"],
     })
 
-    return condition
+    return {
+        "condition_id": condition["condition_id"],
+        "platform":     condition["platform"],
+        "topic_order":  condition["topic"],
+    }
 
 
 # ── Survey ────────────────────────────────────────────────────────────────────

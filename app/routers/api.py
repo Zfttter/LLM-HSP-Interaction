@@ -12,7 +12,10 @@ from app.voice import transcribe_audio, text_to_speech
 from app.models import SurveySubmission, IntroSubmission, ChatMessage, PostSurveySubmission
 from app.hsp_prediction import run_hsp_prediction
 from app.mbti_prediction import run_mbti_prediction
-from app.config import CONVERSATION_ROUNDS, OPENING_MESSAGE, build_system_prompt, MAX_TURNS
+from app.config import (
+    CONVERSATION_ROUNDS, OPENING_MESSAGE, build_system_prompt, MAX_TURNS,
+    topic_for_turn, turn_phase, PER_TOPIC_TURNS, INTRO_TURNS,
+)
 
 _history_cache: dict = {}
 _pending_cache: dict = {}
@@ -314,21 +317,27 @@ async def process_turn(request: Request):
 
     participant   = db_.get_participant_by_id(participant_id)
     platform      = participant.get("assigned_platform", "gpt-4o")
-    topic         = participant.get("assigned_topic", "")
+    topic_order   = participant.get("assigned_topic_order", "ABC")
     hsp_condition = participant.get("hsp_condition", "")
 
     history = _history_cache.setdefault(session_id, [])
     history.append({"role": "user", "content": transcript})
 
-    system_prompt = build_system_prompt(topic, turn_number)
+    system_prompt = build_system_prompt(topic_order, turn_number)
     ai_text, response_time_ms = call_llm(platform, history, system_prompt)
     history.append({"role": "assistant", "content": ai_text})
 
     request.session["turn_number"] = turn_number
     is_final = turn_number >= MAX_TURNS
 
+    # Did we just finish the last turn of a non-final topic?
+    phase = turn_phase(turn_number, topic_order)
+    is_topic_transition = phase == "transition"
+
     tts_voice = request.session.get("tts_voice", "nova")
-    tts_b64 = text_to_speech(ai_text, tts_voice)
+    tts_b64   = text_to_speech(ai_text, tts_voice)
+
+    current_topic = topic_for_turn(turn_number, topic_order)
 
     db_.save_voice_turn({
         "participant_id":     participant_id,
@@ -340,7 +349,7 @@ async def process_turn(request: Request):
         "tts_voice_used":     tts_voice,
         "platform":           platform,
         "hsp_condition":      hsp_condition,
-        "topic":              topic,
+        "topic":              current_topic,
         "response_time_ms":   response_time_ms,
     })
 
@@ -348,11 +357,14 @@ async def process_turn(request: Request):
         db_.update_participant(participant_id, {"chat_completed": True})
 
     return JSONResponse({
-        "ok":          True,
-        "ai_text":     ai_text,
-        "tts_b64":     tts_b64,
-        "turn_number": turn_number,
-        "is_final":    is_final,
+        "ok":                   True,
+        "ai_text":              ai_text,
+        "tts_b64":              tts_b64,
+        "turn_number":          turn_number,
+        "is_final":             is_final,
+        "is_topic_transition":  is_topic_transition,
+        "current_topic":        current_topic,
+        "phase":                phase,
     })
 
 

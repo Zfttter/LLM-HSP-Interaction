@@ -1829,6 +1829,21 @@ p  { margin-bottom: 0.75rem; }
 }
 .sage-dot-done { background: #3B6D11; }
 
+/* Segmented progress rows (one row per topic) */
+.sage-progress-rows {
+  display: flex; flex-direction: column; gap: 0.55rem;
+  align-items: stretch;
+}
+.sage-progress-row {
+  display: flex; align-items: center; gap: 0.6rem; justify-content: space-between;
+}
+.sage-progress-topic-name {
+  font-size: 0.72rem; color: #5a8a2a; text-align: left; flex: 1;
+  text-transform: capitalize; line-height: 1.1;
+}
+.sage-progress-row .sage-dots-row { justify-content: flex-end; gap: 5px; }
+.sage-progress-row .sage-dot { width: 7px; height: 7px; }
+
 /* ── Modal ───────────────────────────────────────────────────────────────── */
 .modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);

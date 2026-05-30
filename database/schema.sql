@@ -256,6 +256,35 @@ ALTER TABLE participants ADD COLUMN IF NOT EXISTS education                   TE
 -- ── Migration: mental health screening (run once in Supabase SQL Editor) ─────
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS mental_health_screening     TEXT;
 
+-- ── Migration: Latin-square topic order (run once in Supabase SQL Editor) ────
+-- Each participant now goes through ALL 3 topics in a counterbalanced order.
+-- assigned_topic_order ∈ {'ABC','BCA','CAB'}.
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS assigned_topic_order TEXT;
+ALTER TABLE voice_turns  ADD COLUMN IF NOT EXISTS topic                TEXT;
+
+-- Reset condition_counts to the new 6 platforms × 3 orders design.
+-- WARNING: this clears existing counts. Only run if you also delete test participants.
+DELETE FROM condition_counts;
+INSERT INTO condition_counts (condition_id, platform, topic) VALUES
+    (1,  'gpt-4o',                   'ABC'),
+    (2,  'gpt-4o',                   'BCA'),
+    (3,  'gpt-4o',                   'CAB'),
+    (4,  'gpt-4o-mini',              'ABC'),
+    (5,  'gpt-4o-mini',              'BCA'),
+    (6,  'gpt-4o-mini',              'CAB'),
+    (7,  'claude-sonnet-4-6',        'ABC'),
+    (8,  'claude-sonnet-4-6',        'BCA'),
+    (9,  'claude-sonnet-4-6',        'CAB'),
+    (10, 'gemini-2.0-flash',         'ABC'),
+    (11, 'gemini-2.0-flash',         'BCA'),
+    (12, 'gemini-2.0-flash',         'CAB'),
+    (13, 'deepseek-chat',            'ABC'),
+    (14, 'deepseek-chat',            'BCA'),
+    (15, 'deepseek-chat',            'CAB'),
+    (16, 'llama-3.3-70b-versatile',  'ABC'),
+    (17, 'llama-3.3-70b-versatile',  'BCA'),
+    (18, 'llama-3.3-70b-versatile',  'CAB');
+
 -- ── Migration: data sharing consent (run once in Supabase SQL Editor) ────────
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS data_sharing_consent        BOOLEAN;
 

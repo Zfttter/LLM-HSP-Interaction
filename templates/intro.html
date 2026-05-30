@@ -4,14 +4,16 @@
 {% block content %}
 <div class="card">
 
-  <!-- Topic pill -->
-  <div class="topic-pill">🌿 {{ topic }}</div>
+  <p style="margin:0 0 1rem;font-size:0.95rem;color:#5a8a2a;">
+    You'll be invited to share about <strong>three personal topics</strong> in the order below, with about 5 turns of conversation on each.
+  </p>
 
-  <!-- Prompt card -->
-  <div class="topic-prompt-card">
-    {{ topic_prompt | replace('\n\n', '</p><p>') | safe }}
-    <p>Share what happened, who was there, and how it left you feeling.</p>
+  {% for t in ordered_topics %}
+  <div class="topic-pill">🌿 {{ loop.index }}. {{ t.name }}</div>
+  <div class="topic-prompt-card" style="margin-bottom:1.25rem;">
+    {{ t.prompt | replace('\n\n', '</p><p>') | safe }}
   </div>
+  {% endfor %}
 
   <!-- AI warning (minimal) -->
   <div class="data-quality-notice">

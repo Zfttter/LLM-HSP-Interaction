@@ -556,6 +556,7 @@ const TOPIC_SHORT = {
   "social_anxiety":        "Social",
   "rumination":            "Rum.",
   "anticipatory_anxiety":  "Anticip.",
+  "ABC": "ABC", "BCA": "BCA", "CAB": "CAB",
 };
 const BFI_DIMS = ["Extraversion", "Agreeableness", "Conscientiousness", "Neuroticism", "Openness"];
 const VOICE_LABEL = { "nova": "Voice 1", "onyx": "Voice 2", "alloy": "Voice 3" };
@@ -659,7 +660,7 @@ function sortParticipants() {
 function getSortValue(p, col) {
   switch(col) {
     case "#":          return p.created_at;
-    case "condition":  return (PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "") + " " + (TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "");
+    case "condition":  return (PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "") + " " + (TOPIC_SHORT[p.assigned_topic_order] || p.assigned_topic_order || "");
     case "status":     return statusRank(p);
     case "created_at": return p.created_at;
     default:           return p[col];
@@ -739,8 +740,8 @@ function getRowClass(p) {
 
 function formatCondition(p) {
   const plat = PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "—";
-  const topic = TOPIC_SHORT[p.assigned_topic] || p.assigned_topic || "—";
-  if (p.assigned_platform || p.assigned_topic) return `${plat}×${topic}`;
+  const topic = TOPIC_SHORT[p.assigned_topic_order] || p.assigned_topic_order || "—";
+  if (p.assigned_platform || p.assigned_topic_order) return `${plat}×${topic}`;
   return "—";
 }
 
