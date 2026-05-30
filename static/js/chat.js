@@ -367,6 +367,7 @@ function updateProgress(justCompletedTurn) {
 
   if (justCompletedTurn <= 1) {
     if (label) label.textContent = "Introduction";
+    activeIdx = 0;  // intro phase invites topic 1 — highlight it right away
   } else {
     const topicIdx    = Math.floor((justCompletedTurn - 2) / PER_TOPIC_TURNS);
     const turnInTopic = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;

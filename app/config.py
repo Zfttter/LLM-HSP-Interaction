@@ -202,15 +202,17 @@ def topic_for_turn(turn_number: int, topic_order: str):
 
 
 def turn_phase(turn_number: int, topic_order: str) -> str:
-    """Returns one of: intro, topic_open, story, transition, closing."""
+    """Returns one of: intro, story, transition, closing.
+    intro = first AI response (acknowledges + invites topic 1).
+    Subsequent topics are introduced by the prior topic's transition turn,
+    so there's no separate `topic_open` phase.
+    """
     if turn_number <= INTRO_TURNS:
         return "intro"
     topics = TOPIC_ORDERS.get(topic_order, [])
     idx = (turn_number - INTRO_TURNS - 1) // PER_TOPIC_TURNS
     pos = (turn_number - INTRO_TURNS - 1) % PER_TOPIC_TURNS
     is_last_topic = idx == len(topics) - 1
-    if pos == 0:
-        return "topic_open"
     if pos == PER_TOPIC_TURNS - 1:
         return "closing" if is_last_topic else "transition"
     return "story"
@@ -231,27 +233,15 @@ def build_system_prompt(topic_order: str, turn_number: int) -> str:
     )
 
     if phase == "intro":
+        first_desc = TOPIC_DESCRIPTIONS.get(topics[0], "") if topics else ""
         body = (
             f"\nCURRENT PHASE — Introduction (turn {turn_number}):\n"
             "You have just asked the participant their name and one thing they enjoy. "
-            "Respond warmly (1–2 sentences) acknowledging what they shared. "
-            "Do NOT introduce any of the three topics yet — keep it light and welcoming. "
-            "End with a gentle invitation like \"Whenever you're ready, we can begin.\"\n"
-        )
-    elif phase == "topic_open":
-        idx       = topics.index(cur_topic) if cur_topic in topics else 0
-        is_first  = idx == 0
-        prev_desc = TOPIC_DESCRIPTIONS.get(topics[idx - 1], "") if not is_first else ""
-        transition_lead = (
-            "Briefly acknowledge what the participant just shared (1 sentence). "
-            if is_first
-            else f"Briefly acknowledge what they shared about {prev_desc} (1 sentence). "
-        )
-        body = (
-            f"\nCURRENT PHASE — Opening topic {idx + 1}/{NUM_TOPICS} (turn {turn_number}):\n"
-            f"{transition_lead}"
-            f"Now invite them warmly to share about: {cur_desc}. "
-            "Phrase it as an open invitation, e.g., \"Take your time and share whatever comes to mind.\"\n"
+            "Respond warmly (1 sentence) acknowledging what they shared, "
+            "then immediately invite them to share about the FIRST topic. "
+            f"Frame it as: \"Now I'd love to hear about {first_desc}. "
+            "Take your time and share whatever comes to mind.\" "
+            "Total response: 2–3 sentences.\n"
         )
     elif phase == "story":
         body = (
