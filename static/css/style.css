@@ -1669,16 +1669,20 @@ p  { margin-bottom: 0.75rem; }
   background: #fff; border: 1px solid #C0DD97; border-radius: 12px;
   overflow: hidden; box-shadow: 0 1px 6px rgba(59,109,17,0.07);
 }
-/* Static (non-collapsible) variant */
-.sage-topic-box--static { flex: 2; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+/* Static (non-collapsible) variant — transparent, no shadow, just a green outline */
+.sage-topic-box--static {
+  flex: 2; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  background: transparent; box-shadow: none;
+}
 .sage-topic-header {
   padding: 0.65rem 1rem; font-size: 0.84rem; font-weight: 500;
-  color: #3B6D11; background: #f4f9ee; border-bottom: 1px solid #C0DD97;
+  color: #3B6D11; background: transparent; border-bottom: 1px solid #C0DD97;
   flex-shrink: 0;
 }
 .sage-topic-body {
   padding: 0.85rem 1rem; font-size: 0.83rem; color: #444; line-height: 1.7; font-weight: 300;
   overflow-y: auto; flex: 1; min-height: 0;
+  background: transparent;
 }
 .sage-topic-body strong {
   display: block; color: #2a5000; font-weight: 500; margin-bottom: 0.6rem;
