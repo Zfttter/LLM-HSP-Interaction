@@ -199,15 +199,12 @@ function continueAfterTransition() {
   const nextTopicIdx = Math.floor(currentTurnNum / PER_TOPIC_TURNS); // upcoming topic 0-indexed
   showTopicPromptForIndex(nextTopicIdx);
 
-  // Move the highlight in the progress card to the upcoming topic + update label
-  document.querySelectorAll(".sage-progress-row").forEach((row) => {
-    const idx = parseInt(row.dataset.topicIdx, 10);
-    row.classList.toggle("current", idx === nextTopicIdx);
+  // Reset progress dots for the new topic
+  const numEl = document.getElementById("currentRound");
+  if (numEl) numEl.textContent = 0;
+  document.querySelectorAll(".sage-dot").forEach((dot) => {
+    dot.classList.remove("sage-dot-done");
   });
-  const label = document.getElementById("progressLabel");
-  if (label) {
-    label.textContent = `Topic ${nextTopicIdx + 1}/${NUM_TOPICS} · Starting…`;
-  }
 
   setState("IDLE");
   showPTT();
@@ -369,41 +366,20 @@ function appendMessage(role, text, roundNum) {
   }
 }
 
-// ── Segmented progress (3 topics × PER_TOPIC_TURNS) ───────────────────────────
+// ── Progress (X of 5 moments for the current topic) ──────────────────────────
 function updateProgress(justCompletedTurn) {
   // justCompletedTurn = the turn number the participant just sent (1..MAX_TURNS)
-  const label = document.getElementById("progressLabel");
-  let activeIdx = -1;
-
-  if (justCompletedTurn <= 1) {
-    if (label) label.textContent = "Introduction";
-    activeIdx = 0;  // intro phase invites topic 1 — highlight it right away
-  } else {
-    const topicIdx    = Math.floor((justCompletedTurn - 2) / PER_TOPIC_TURNS);
-    const turnInTopic = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;
-    activeIdx = topicIdx;
-
-    if (label) {
-      label.textContent =
-        `Topic ${topicIdx + 1}/${NUM_TOPICS} · Turn ${turnInTopic}/${PER_TOPIC_TURNS}`;
-    }
-
-    document.querySelectorAll(".sage-progress-row").forEach((row) => {
-      const idx  = parseInt(row.dataset.topicIdx, 10);
-      const dots = row.querySelectorAll(".sage-dot");
-      dots.forEach((dot, i) => {
-        let done = false;
-        if (idx < topicIdx)        done = true;
-        else if (idx === topicIdx) done = i < turnInTopic;
-        dot.classList.toggle("sage-dot-done", done);
-      });
-    });
+  // Intro (turn 1) doesn't count as a "moment". Each topic has PER_TOPIC_TURNS moments.
+  let turnInTopic = 0;
+  if (justCompletedTurn >= 2) {
+    turnInTopic = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;
   }
 
-  // Highlight the active topic row (or none during intro)
-  document.querySelectorAll(".sage-progress-row").forEach((row) => {
-    const idx = parseInt(row.dataset.topicIdx, 10);
-    row.classList.toggle("current", idx === activeIdx);
+  const numEl = document.getElementById("currentRound");
+  if (numEl) numEl.textContent = turnInTopic;
+
+  document.querySelectorAll(".sage-dot").forEach((dot, i) => {
+    dot.classList.toggle("sage-dot-done", i < turnInTopic);
   });
 }
 

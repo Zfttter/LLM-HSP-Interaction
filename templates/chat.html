@@ -28,19 +28,14 @@
       </div>
     </div>
 
-    <!-- Progress: 3 topics × {{ per_topic_turns }} turns -->
+    <!-- Progress: turns within the current topic -->
     <div class="sage-progress-card">
-      <div class="sage-progress-label" id="progressLabel">Getting started…</div>
-      <div class="sage-progress-rows">
-        {% for t in ordered_topics %}
-        <div class="sage-progress-row" data-topic-idx="{{ loop.index0 }}">
-          <div class="sage-progress-topic-name">{{ loop.index }}. {{ t.name }}</div>
-          <div class="sage-dots-row">
-            {% for _ in range(per_topic_turns) %}
-            <span class="sage-dot"></span>
-            {% endfor %}
-          </div>
-        </div>
+      <div class="sage-progress-label">
+        <span id="currentRound">0</span>&thinsp;of&thinsp;{{ per_topic_turns }}&thinsp;moments
+      </div>
+      <div class="sage-dots-row">
+        {% for _ in range(per_topic_turns) %}
+        <span class="sage-dot"></span>
         {% endfor %}
       </div>
     </div>

@@ -1829,37 +1829,6 @@ p  { margin-bottom: 0.75rem; }
 }
 .sage-dot-done { background: #3B6D11; }
 
-/* Segmented progress rows (one row per topic) */
-.sage-progress-rows {
-  display: flex; flex-direction: column; gap: 0.4rem;
-  align-items: stretch;
-}
-.sage-progress-row {
-  display: flex; align-items: center; gap: 0.6rem; justify-content: space-between;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  transition: background 0.2s ease;
-}
-.sage-progress-topic-name {
-  font-size: 0.78rem; color: #8aab68; text-align: left; flex: 1;
-  text-transform: capitalize; line-height: 1.2;
-}
-.sage-progress-row .sage-dots-row { justify-content: flex-end; gap: 5px; }
-.sage-progress-row .sage-dot { width: 7px; height: 7px; }
-
-/* Current (active) topic row */
-.sage-progress-row.current {
-  background: #EAF3DE;
-}
-.sage-progress-row.current .sage-progress-topic-name {
-  color: #3B6D11;
-  font-weight: 600;
-}
-.sage-progress-row.current .sage-progress-topic-name::before {
-  content: "▸ ";
-  color: #3B6D11;
-}
-
 /* ── Modal ───────────────────────────────────────────────────────────────── */
 .modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
