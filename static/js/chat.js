@@ -363,27 +363,36 @@ function appendMessage(role, text, roundNum) {
 function updateProgress(justCompletedTurn) {
   // justCompletedTurn = the turn number the participant just sent (1..MAX_TURNS)
   const label = document.getElementById("progressLabel");
+  let activeIdx = -1;
+
   if (justCompletedTurn <= 1) {
     if (label) label.textContent = "Introduction";
-    return;
-  }
-  const topicIdx     = Math.floor((justCompletedTurn - 2) / PER_TOPIC_TURNS);     // 0..NUM_TOPICS-1
-  const turnInTopic  = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;           // 1..PER_TOPIC_TURNS
+  } else {
+    const topicIdx    = Math.floor((justCompletedTurn - 2) / PER_TOPIC_TURNS);
+    const turnInTopic = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;
+    activeIdx = topicIdx;
 
-  if (label) {
-    label.textContent =
-      `Topic ${topicIdx + 1}/${NUM_TOPICS} · Turn ${turnInTopic}/${PER_TOPIC_TURNS}`;
+    if (label) {
+      label.textContent =
+        `Topic ${topicIdx + 1}/${NUM_TOPICS} · Turn ${turnInTopic}/${PER_TOPIC_TURNS}`;
+    }
+
+    document.querySelectorAll(".sage-progress-row").forEach((row) => {
+      const idx  = parseInt(row.dataset.topicIdx, 10);
+      const dots = row.querySelectorAll(".sage-dot");
+      dots.forEach((dot, i) => {
+        let done = false;
+        if (idx < topicIdx)        done = true;
+        else if (idx === topicIdx) done = i < turnInTopic;
+        dot.classList.toggle("sage-dot-done", done);
+      });
+    });
   }
 
+  // Highlight the active topic row (or none during intro)
   document.querySelectorAll(".sage-progress-row").forEach((row) => {
     const idx = parseInt(row.dataset.topicIdx, 10);
-    const dots = row.querySelectorAll(".sage-dot");
-    dots.forEach((dot, i) => {
-      let done = false;
-      if (idx < topicIdx)  done = true;
-      else if (idx === topicIdx) done = i < turnInTopic;
-      dot.classList.toggle("sage-dot-done", done);
-    });
+    row.classList.toggle("current", idx === activeIdx);
   });
 }
 

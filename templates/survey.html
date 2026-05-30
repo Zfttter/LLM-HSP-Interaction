@@ -295,9 +295,9 @@
       </div>
 
       <div class="form-group" style="margin-bottom:1.75rem;">
-        <label for="self_mbti">9. What is your MBTI personality type? <span class="optional-label">(optional — leave blank if unsure)</span></label>
+        <label for="self_mbti">9. What is your MBTI personality type?</label>
         <div class="mbti-guide">
-          <p class="mbti-guide-intro">MBTI describes personality across four dimensions. Pick one letter from each pair to form a 4-letter type (e.g. <em>INFJ</em>, <em>ENFP</em>, <em>ISTP</em>):</p>
+          <p class="mbti-guide-intro">MBTI describes personality across four dimensions. Each type is one letter from each pair:</p>
           <div class="mbti-dims">
             <div class="mbti-dim">
               <span class="mbti-letters"><strong>E</strong> vs <strong>I</strong></span>
@@ -317,15 +317,34 @@
             </div>
           </div>
         </div>
-        <input
-          type="text"
-          id="self_mbti"
-          name="self_mbti"
-          class="form-control form-control-sm"
-          maxlength="10"
-          placeholder="e.g. INFJ"
-          style="max-width: 160px; text-transform: uppercase;"
-        />
+        <select id="self_mbti" name="self_mbti" class="form-control form-control-sm" required style="max-width: 280px;">
+          <option value="" disabled selected>— Please select —</option>
+          <optgroup label="Analysts">
+            <option value="INTJ">INTJ — Architect</option>
+            <option value="INTP">INTP — Logician</option>
+            <option value="ENTJ">ENTJ — Commander</option>
+            <option value="ENTP">ENTP — Debater</option>
+          </optgroup>
+          <optgroup label="Diplomats">
+            <option value="INFJ">INFJ — Advocate</option>
+            <option value="INFP">INFP — Mediator</option>
+            <option value="ENFJ">ENFJ — Protagonist</option>
+            <option value="ENFP">ENFP — Campaigner</option>
+          </optgroup>
+          <optgroup label="Sentinels">
+            <option value="ISTJ">ISTJ — Logistician</option>
+            <option value="ISFJ">ISFJ — Defender</option>
+            <option value="ESTJ">ESTJ — Executive</option>
+            <option value="ESFJ">ESFJ — Consul</option>
+          </optgroup>
+          <optgroup label="Explorers">
+            <option value="ISTP">ISTP — Virtuoso</option>
+            <option value="ISFP">ISFP — Adventurer</option>
+            <option value="ESTP">ESTP — Entrepreneur</option>
+            <option value="ESFP">ESFP — Entertainer</option>
+          </optgroup>
+          <option value="unknown">I don't know my MBTI type</option>
+        </select>
       </div>
 
       <div class="form-group" style="margin-bottom:1.75rem;">

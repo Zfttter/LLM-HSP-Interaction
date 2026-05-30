@@ -101,6 +101,8 @@ async def submit_survey(request: Request):
     education = str(form.get("education", ""))
     mental_health_screening = str(form.get("mental_health_screening", "no"))
     self_mbti = str(form.get("self_mbti", "")).strip().upper() or None
+    if self_mbti == "UNKNOWN":
+        self_mbti = None
 
     # Validate ranges
     for i in range(1, 19):

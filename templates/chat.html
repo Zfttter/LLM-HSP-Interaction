@@ -45,14 +45,11 @@
       </div>
     </div>
 
-    <!-- Topic prompts — one per topic, current one highlighted -->
+    <!-- Topic prompts — body only; the current topic is identified in the progress card above -->
     {% for t in ordered_topics %}
     <div class="sage-topic-box sage-topic-box--static topic-prompt-box"
          data-topic-idx="{{ loop.index0 }}"
          {% if not loop.first %}style="display:none;"{% endif %}>
-      <div class="sage-topic-header">
-        Topic {{ loop.index }}/{{ num_topics }} &mdash; <strong>{{ t.name }}</strong>
-      </div>
       <div class="sage-topic-body">
         <p class="sage-topic-prompt">{{ t.prompt }}</p>
       </div>
