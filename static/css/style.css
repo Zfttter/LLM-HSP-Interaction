@@ -1677,21 +1677,22 @@ p  { margin-bottom: 0.75rem; }
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  background: #f7faf2;
+  background: #fff;
   box-shadow: none;
-  border: 2px solid #3B6D11;
+  border: 1px solid #C0DD97;
   padding: 0;       /* overrides .topic-prompt-box's 1.25rem */
   margin: 0;        /* overrides .topic-prompt-box's 1rem 0 */
 }
 
 .sage-topic-header {
-  padding: 0.2rem 0.15rem; font-size: 0.78rem; font-weight: 500;
+  padding: 0.8rem 0.9rem; font-size: 0.95rem; font-weight: 500;
   color: #3B6D11; background: #f4f9ee; border-bottom: 1px solid #C0DD97;
   flex-shrink: 0;
 }
 .sage-topic-body {
-  padding: 0.25rem 0.15rem; font-size: 0.78rem; color: #444; line-height: 1.6; font-weight: 300;
+  padding: 0.85rem 0.9rem; font-size: 0.78rem; color: #444; line-height: 1.6; font-weight: 300;
   overflow-y: auto; flex: 1; min-height: 0;
+  background: #fff;
 }
 
 .sage-topic-body strong {
