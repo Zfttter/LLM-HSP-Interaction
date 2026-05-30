@@ -199,12 +199,14 @@ function continueAfterTransition() {
   const nextTopicIdx = Math.floor(currentTurnNum / PER_TOPIC_TURNS); // upcoming topic 0-indexed
   showTopicPromptForIndex(nextTopicIdx);
 
-  // Reset progress dots for the new topic
+  // Reset the single-row progress dots for the new topic
   const numEl = document.getElementById("currentRound");
   if (numEl) numEl.textContent = 0;
-  document.querySelectorAll(".sage-dot").forEach((dot) => {
-    dot.classList.remove("sage-dot-done");
-  });
+  document.querySelectorAll(".sage-progress-card:not(.sage-overview-card) .sage-dot")
+    .forEach((dot) => dot.classList.remove("sage-dot-done"));
+
+  // Move the overview highlight to the upcoming topic
+  setActiveTopicRow(nextTopicIdx);
 
   setState("IDLE");
   showPTT();
@@ -371,16 +373,33 @@ function updateProgress(justCompletedTurn) {
   // justCompletedTurn = the turn number the participant just sent (1..MAX_TURNS)
   // Intro (turn 1) doesn't count as a "moment". Each topic has PER_TOPIC_TURNS moments.
   let turnInTopic = 0;
+  let activeTopicIdx = 0;
   if (justCompletedTurn >= 2) {
-    turnInTopic = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;
+    activeTopicIdx = Math.floor((justCompletedTurn - 2) / PER_TOPIC_TURNS);
+    turnInTopic   = ((justCompletedTurn - 2) % PER_TOPIC_TURNS) + 1;
   }
 
   const numEl = document.getElementById("currentRound");
   if (numEl) numEl.textContent = turnInTopic;
 
-  document.querySelectorAll(".sage-dot").forEach((dot, i) => {
-    dot.classList.toggle("sage-dot-done", i < turnInTopic);
+  // Fill only the dots inside the single-row progress card (not the overview)
+  document.querySelectorAll(".sage-progress-card:not(.sage-overview-card) .sage-dot")
+    .forEach((dot, i) => {
+      dot.classList.toggle("sage-dot-done", i < turnInTopic);
+    });
+
+  setActiveTopicRow(activeTopicIdx);
+}
+
+function setActiveTopicRow(idx) {
+  document.querySelectorAll(".sage-overview-row").forEach((row) => {
+    const rowIdx = parseInt(row.dataset.topicIdx, 10);
+    row.classList.toggle("current", rowIdx === idx);
   });
+  const overviewLabel = document.getElementById("overviewLabel");
+  if (overviewLabel) {
+    overviewLabel.textContent = `Topic ${idx + 1} of ${NUM_TOPICS}`;
+  }
 }
 
 function showTopicPromptForIndex(idx) {

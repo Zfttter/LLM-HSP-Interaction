@@ -1829,6 +1829,29 @@ p  { margin-bottom: 0.75rem; }
 }
 .sage-dot-done { background: #3B6D11; }
 
+/* Overview card (3-topic agenda) */
+.sage-overview-card { padding: 0.65rem 0.85rem; }
+.sage-overview-rows {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+.sage-overview-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.2rem 0.4rem; border-radius: 6px;
+  transition: background 0.2s ease;
+}
+.sage-overview-topic-name {
+  font-size: 0.75rem; color: #8aab68; flex: 1; text-align: left;
+  font-weight: 300; line-height: 1.2;
+}
+.sage-overview-row .sage-dots-row { gap: 4px; }
+.sage-overview-row .sage-dot { width: 6px; height: 6px; }
+
+.sage-overview-row.current { background: #EAF3DE; }
+.sage-overview-row.current .sage-overview-topic-name {
+  color: #3B6D11; font-weight: 600;
+}
+
 /* ── Modal ───────────────────────────────────────────────────────────────── */
 .modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);

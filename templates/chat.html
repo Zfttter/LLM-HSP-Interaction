@@ -28,6 +28,23 @@
       </div>
     </div>
 
+    <!-- Overview: 3-topic agenda (current topic highlighted) -->
+    <div class="sage-progress-card sage-overview-card">
+      <div class="sage-progress-label" id="overviewLabel">Getting started…</div>
+      <div class="sage-overview-rows">
+        {% for t in ordered_topics %}
+        <div class="sage-overview-row" data-topic-idx="{{ loop.index0 }}">
+          <div class="sage-overview-topic-name">{{ loop.index }}. {{ t.name }}</div>
+          <div class="sage-dots-row">
+            {% for _ in range(per_topic_turns) %}
+            <span class="sage-dot"></span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
     <!-- Progress: turns within the current topic -->
     <div class="sage-progress-card">
       <div class="sage-progress-label">
