@@ -255,12 +255,13 @@ def build_system_prompt(topic_order: str, turn_number: int) -> str:
         body = (
             f"\nCURRENT PHASE — Closing topic {idx + 1}/{NUM_TOPICS} (turn {turn_number}):\n"
             f"This is the LAST turn for the current topic ({cur_desc}). "
-            "Do NOT ask any follow-up question. "
-            "Give a warm, substantial closing response (2–3 sentences): "
-            "acknowledge specifically what the participant has shared on this topic, "
-            "offer a brief empathic reflection on the experience they described, "
-            "and signal that this part of the conversation is complete "
-            "(e.g., \"Thank you for trusting me with that.\"). "
+            "You MUST give a warm closing response, REGARDLESS of what the participant just said. "
+            "Do NOT ask any follow-up question. Do NOT invite them to share more. "
+            "Even if their last message was brief, off-topic, confused, or unclear, you still give a closing. "
+            "Format (2–3 sentences total): "
+            "(1) Briefly acknowledge the time you spent together on this topic; "
+            "(2) Offer a warm, empathic note (e.g., \"What you shared matters\" or \"Thank you for taking the time with me on this\"); "
+            "(3) Signal that this part of the conversation is complete (e.g., \"Let's take a moment before we move on.\"). "
             "Do NOT introduce, name, or hint at the next topic — that will be announced separately afterwards.\n"
         )
     else:  # closing
