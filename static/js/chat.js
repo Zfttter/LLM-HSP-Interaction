@@ -10,7 +10,6 @@ let recorder        = null;
 let audioChunks     = [];
 let currentAudio    = null;
 let currentTurnNum  = 0;   // updated after each server response
-let pendingTransition = false; // true while we're showing the topic-transition modal
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   requestMicPermission().then(() => {
@@ -153,67 +152,18 @@ async function submitTurn() {
     appendMessage("ai", data.ai_text, null);
     currentTurnNum = data.turn_number;
 
-    let afterAudio = null;
-    if (data.is_final) {
-      afterAudio = showCompletionModal;
-    } else if (data.is_topic_transition) {
-      afterAudio = () => showTransitionModal(data.turn_number);
-    }
+    // After the closing turn of this topic, audio plays, then we redirect to post-survey
+    const afterAudio = data.is_final ? showCompletionModal : null;
 
     await playAudio(data.tts_b64, afterAudio);
     if (data.is_final) return;
   } catch (err) {
     removeTypingIndicator();
-    setStatus("error", `Error: ${err.message}. Please try again.`);
     setState("IDLE");
     showPTT();
+    // call setStatus LAST so the error message isn't overwritten by IDLE's default text
+    setStatus("error", `Error: ${err.message}. Please try again.`);
   }
-}
-
-// ── Topic transition modal ────────────────────────────────────────────────────
-function showTransitionModal(completedTurn) {
-  // completedTurn is the LAST turn of a non-final topic (e.g. 6 or 11)
-  // The next topic starts on completedTurn + 1
-  const nextTopicIdx = Math.floor((completedTurn - 1) / PER_TOPIC_TURNS); // 0-indexed for upcoming topic
-  const nextName     = TOPIC_NAMES[nextTopicIdx] || "the next topic";
-
-  document.getElementById("transitionBody").textContent =
-    `You're done with this topic. When you're ready, we'll move on to: ${nextName}.`;
-
-  hideInputArea();
-  pendingTransition = true;
-
-  const modal = document.getElementById("transitionModal");
-  if (modal) modal.style.display = "flex";
-
-  const btn = document.getElementById("transitionContinueBtn");
-  if (btn) btn.onclick = continueAfterTransition;
-}
-
-function continueAfterTransition() {
-  const modal = document.getElementById("transitionModal");
-  if (modal) modal.style.display = "none";
-  pendingTransition = false;
-
-  // Reveal the next topic prompt in the sidebar
-  const nextTopicIdx = Math.floor(currentTurnNum / PER_TOPIC_TURNS); // upcoming topic 0-indexed
-  showTopicPromptForIndex(nextTopicIdx);
-  updateTopicIndicator(nextTopicIdx);
-
-  // Reset the progress dots for the new topic
-  const numEl = document.getElementById("currentRound");
-  if (numEl) numEl.textContent = 0;
-  document.querySelectorAll(".sage-dot").forEach((dot) => dot.classList.remove("sage-dot-done"));
-
-  setState("IDLE");
-  showPTT();
-}
-
-function updateTopicIndicator(idx) {
-  const posEl  = document.getElementById("chatTopicPosition");
-  const nameEl = document.getElementById("chatTopicName");
-  if (posEl)  posEl.textContent  = `Topic ${idx + 1} / ${NUM_TOPICS}`;
-  if (nameEl) nameEl.textContent = TOPIC_NAMES[idx] || "";
 }
 
 // ── Audio playback ────────────────────────────────────────────────────────────
@@ -318,10 +268,10 @@ function setState(newState) {
       // status set in showPreview()
       break;
     case "PROCESSING":
-      setStatus("processing", "Sage is thinking…");
+      setStatus("processing", `${AI_NAME} is thinking…`);
       break;
     case "PLAYING":
-      setStatus("playing", "Sage is speaking…");
+      setStatus("playing", `${AI_NAME} is speaking…`);
       break;
     case "GREETING":
       setStatus("loading", "Loading…");
@@ -347,7 +297,7 @@ function appendMessage(role, text, roundNum) {
 
     const msg = document.createElement("div");
     msg.className = "message user-message msg-new";
-    const metaText = roundNum ? `You \u2022 moment ${roundNum}` : "You";
+    const metaText = roundNum ? `You \u2022 ${roundNum}` : "You";
     msg.innerHTML =
       `<div class="msg-bubble">${escapeHtml(text)}</div>` +
       `<div class="msg-meta">${metaText}</div>`;
@@ -366,7 +316,7 @@ function appendMessage(role, text, roundNum) {
     msg.className = "message ai-message msg-new";
     msg.innerHTML =
       `<div class="msg-bubble">${escapeHtml(text)}</div>` +
-      `<div class="msg-meta">Sage</div>`;
+      `<div class="msg-meta">${AI_NAME}</div>`;
     lastPair.appendChild(msg);
     msg.scrollIntoView({ behavior: "smooth", block: "end" });
   }
@@ -388,19 +338,9 @@ function updateProgress(justCompletedTurn) {
   });
 }
 
-function showTopicPromptForIndex(idx) {
-  document.querySelectorAll(".topic-prompt-box").forEach((box) => {
-    const boxIdx = parseInt(box.dataset.topicIdx, 10);
-    box.style.display = (boxIdx === idx) ? "" : "none";
-  });
-}
-
 function labelForTurn(turnNumber) {
-  if (turnNumber <= 1) return null;
-  const topicIdx    = Math.floor((turnNumber - 2) / PER_TOPIC_TURNS);
-  const turnInTopic = ((turnNumber - 2) % PER_TOPIC_TURNS) + 1;
-  const topicName   = TOPIC_NAMES[topicIdx] || "";
-  return `${topicName} · turn ${turnInTopic}`;
+  if (turnNumber < 1) return null;
+  return `Turn ${turnNumber}`;
 }
 
 function showCompletionModal() {

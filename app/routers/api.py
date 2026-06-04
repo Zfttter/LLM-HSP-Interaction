@@ -13,8 +13,9 @@ from app.models import SurveySubmission, IntroSubmission, ChatMessage, PostSurve
 from app.hsp_prediction import run_hsp_prediction
 from app.mbti_prediction import run_mbti_prediction
 from app.config import (
-    CONVERSATION_ROUNDS, OPENING_MESSAGE, build_system_prompt, MAX_TURNS,
-    topic_for_turn, turn_phase, PER_TOPIC_TURNS, INTRO_TURNS,
+    CONVERSATION_ROUNDS, build_system_prompt, MAX_TURNS,
+    turn_phase, PER_TOPIC_TURNS, NUM_TOPICS,
+    AI_NAMES, ai_name_for_topic, current_topic_for_participant, opening_message,
 )
 
 _history_cache: dict = {}
@@ -263,18 +264,34 @@ def get_greeting(request: Request):
     if not participant_id:
         return JSONResponse({"error": "No session"}, status_code=400)
 
+    # Always start a fresh voice session for the CURRENT topic
     if not request.session.get("voice_session_id"):
         request.session["voice_session_id"] = str(uuid.uuid4())
         request.session["turn_number"] = 0
 
     session_id = request.session["voice_session_id"]
+
+    participant      = db_.get_participant_by_id(participant_id)
+    topics_completed = participant.get("topics_completed", 0) or 0
+    topic_order      = participant.get("assigned_topic_order", "ABC")
+    current_topic    = current_topic_for_participant(topic_order, topics_completed)
+    current_ai       = ai_name_for_topic(topics_completed)
+
+    opening = opening_message(current_ai, current_topic, is_first_topic=(topics_completed == 0))
+
     history = _history_cache.setdefault(session_id, [])
     if not history:
-        history.append({"role": "assistant", "content": OPENING_MESSAGE})
+        history.append({"role": "assistant", "content": opening})
 
     tts_voice = request.session.get("tts_voice", "nova")
-    tts_b64 = text_to_speech(OPENING_MESSAGE, tts_voice)
-    return JSONResponse({"ok": True, "opening_text": OPENING_MESSAGE, "tts_b64": tts_b64})
+    tts_b64 = text_to_speech(opening, tts_voice)
+    return JSONResponse({
+        "ok": True,
+        "opening_text": opening,
+        "tts_b64": tts_b64,
+        "ai_name": current_ai,
+        "topic_index": topics_completed + 1,
+    })
 
 
 @router.post("/transcribe")
@@ -321,25 +338,24 @@ async def process_turn(request: Request):
     platform      = participant.get("assigned_platform", "gpt-4o")
     topic_order   = participant.get("assigned_topic_order", "ABC")
     hsp_condition = participant.get("hsp_condition", "")
+    topics_completed = participant.get("topics_completed", 0) or 0
+
+    current_topic = current_topic_for_participant(topic_order, topics_completed)
+    current_ai    = ai_name_for_topic(topics_completed)
 
     history = _history_cache.setdefault(session_id, [])
     history.append({"role": "user", "content": transcript})
 
-    system_prompt = build_system_prompt(topic_order, turn_number)
+    system_prompt = build_system_prompt(current_ai, current_topic, turn_number)
     ai_text, response_time_ms = call_llm(platform, history, system_prompt)
     history.append({"role": "assistant", "content": ai_text})
 
     request.session["turn_number"] = turn_number
-    is_final = turn_number >= MAX_TURNS
-
-    # Did we just finish the last turn of a non-final topic?
-    phase = turn_phase(turn_number, topic_order)
-    is_topic_transition = phase == "transition"
+    phase    = turn_phase(turn_number)
+    is_final = turn_number >= MAX_TURNS   # = end of THIS topic's chat
 
     tts_voice = request.session.get("tts_voice", "nova")
     tts_b64   = text_to_speech(ai_text, tts_voice)
-
-    current_topic = topic_for_turn(turn_number, topic_order)
 
     db_.save_voice_turn({
         "participant_id":     participant_id,
@@ -352,21 +368,24 @@ async def process_turn(request: Request):
         "platform":           platform,
         "hsp_condition":      hsp_condition,
         "topic":              current_topic,
+        "topic_index":        topics_completed + 1,
+        "ai_name":            current_ai,
         "response_time_ms":   response_time_ms,
     })
 
     if is_final:
-        db_.update_participant(participant_id, {"chat_completed": True})
+        # Mark this topic's chat as done; participant now needs to take the post-survey
+        db_.update_participant(participant_id, {"awaiting_survey": True})
 
     return JSONResponse({
-        "ok":                   True,
-        "ai_text":              ai_text,
-        "tts_b64":              tts_b64,
-        "turn_number":          turn_number,
-        "is_final":             is_final,
-        "is_topic_transition":  is_topic_transition,
-        "current_topic":        current_topic,
-        "phase":                phase,
+        "ok":             True,
+        "ai_text":        ai_text,
+        "tts_b64":        tts_b64,
+        "turn_number":    turn_number,
+        "is_final":       is_final,
+        "current_topic":  current_topic,
+        "phase":          phase,
+        "redirect":       "/post-survey" if is_final else None,
     })
 
 
@@ -375,8 +394,14 @@ async def process_turn(request: Request):
 @router.post("/post-survey")
 async def submit_post_survey(request: Request, background_tasks: BackgroundTasks):
     participant = _require_participant(request)
-    if participant.get("post_survey_completed"):
+    topics_completed = participant.get("topics_completed", 0) or 0
+
+    # All 3 topics + surveys done → straight to completion
+    if topics_completed >= 3:
         return RedirectResponse(url="/complete", status_code=302)
+    # Must have finished the current topic's chat
+    if not participant.get("awaiting_survey"):
+        return RedirectResponse(url="/chat", status_code=302)
 
     form = await request.form()
 
@@ -412,7 +437,11 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
     if not 1 <= closeness_ios <= 7:
         return RedirectResponse(url="/post-survey?error=invalid", status_code=302)
 
+    current_ai = ai_name_for_topic(topics_completed)
+
     db_.save_post_survey(participant["id"], {
+        "topic_index":          topics_completed + 1,
+        "ai_name":              current_ai,
         "general_empathy":      general_empathy,
         "satisfaction":         satisfaction,
         "trust":                trust,
@@ -430,13 +459,26 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
         "mbti_guess":               mbti_guess or None,
     })
 
-    db_.update_participant(participant["id"], {"data_sharing_consent": data_sharing_consent})
+    # Bump topic counter, clear awaiting flag, capture consent on the LAST survey
+    updates = {
+        "topics_completed": topics_completed + 1,
+        "awaiting_survey":  False,
+    }
+    if topics_completed + 1 >= 3:
+        updates["data_sharing_consent"] = data_sharing_consent
+    db_.update_participant(participant["id"], updates)
 
+    # Reset session state so next /chat starts a fresh voice session
+    request.session["voice_session_id"] = None
+    request.session["turn_number"] = 0
+
+    # More topics to do?
+    if topics_completed + 1 < 3:
+        return RedirectResponse(url="/chat", status_code=302)
+
+    # Final topic done → finalize and go to completion page
     code = db_.finalize_participant(participant["id"])
     request.session["completion_code"] = code
-
-    # Silently run predictions after the participant sees their completion page
     background_tasks.add_task(run_hsp_prediction, participant["id"])
     background_tasks.add_task(run_mbti_prediction, participant["id"])
-
     return RedirectResponse(url="/complete", status_code=302)

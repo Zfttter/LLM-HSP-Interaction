@@ -111,33 +111,43 @@ def chat(request: Request):
         return _redirect("/survey")
     if not participant.get("intro_completed"):
         return _redirect("/intro")
-    if participant.get("chat_completed"):
+
+    topics_completed = participant.get("topics_completed", 0) or 0
+    # Currently between chat and post-survey for this topic → go to survey
+    if participant.get("awaiting_survey"):
         return _redirect("/post-survey")
+    # All 3 topics + surveys done → finish
+    if topics_completed >= 3:
+        return _redirect("/complete")
 
     from app.config import (
         TOPIC_PROMPTS, TOPIC_DISPLAY, TOPIC_ORDERS,
-        PER_TOPIC_TURNS, NUM_TOPICS,
+        PER_TOPIC_TURNS, NUM_TOPICS, AI_NAMES,
+        current_topic_for_participant, ai_name_for_topic,
     )
-    topic_order = participant.get("assigned_topic_order", "ABC")
-    topics      = TOPIC_ORDERS.get(topic_order, TOPIC_ORDERS["ABC"])
+    topic_order  = participant.get("assigned_topic_order", "ABC")
+    current_key  = current_topic_for_participant(topic_order, topics_completed)
+    current_ai   = ai_name_for_topic(topics_completed)
 
-    ordered_topics = [
-        {
-            "key":    t,
-            "name":   TOPIC_DISPLAY.get(t, t),
-            "prompt": TOPIC_PROMPTS.get(t, ""),
-        }
-        for t in topics
-    ]
+    # Only reset the voice session when moving to a NEW topic (not on plain refresh)
+    expected_topic_idx = topics_completed + 1
+    if request.session.get("topic_session_idx") != expected_topic_idx:
+        request.session["voice_session_id"] = None
+        request.session["turn_number"]      = 0
+        request.session["topic_session_idx"] = expected_topic_idx
 
     return templates.TemplateResponse(
         request,
         "chat.html",
         {
-            "topic_order":     topic_order,
-            "ordered_topics":  ordered_topics,
-            "per_topic_turns": PER_TOPIC_TURNS,
-            "num_topics":      NUM_TOPICS,
+            "topic_order":      topic_order,
+            "topic_key":        current_key,
+            "topic_name":       TOPIC_DISPLAY.get(current_key, current_key),
+            "topic_prompt":     TOPIC_PROMPTS.get(current_key, ""),
+            "topic_index":      topics_completed + 1,   # 1-based for display
+            "num_topics":       NUM_TOPICS,
+            "per_topic_turns":  PER_TOPIC_TURNS,
+            "ai_name":          current_ai,
         },
     )
 
@@ -147,17 +157,26 @@ def post_survey(request: Request):
     participant = _get_participant(request)
     if not participant:
         return _redirect("/")
-    if not participant.get("chat_completed"):
-        return _redirect("/chat")
-    if participant.get("post_survey_completed"):
-        return _redirect("/complete")
 
-    from app.config import POST_SURVEY_LABELS, AI_NAME
+    topics_completed = participant.get("topics_completed", 0) or 0
+    if topics_completed >= 3:
+        return _redirect("/complete")
+    # Must have finished the current topic's chat before surveying it
+    if not participant.get("awaiting_survey"):
+        return _redirect("/chat")
+
+    from app.config import POST_SURVEY_LABELS, ai_name_for_topic
+    current_ai = ai_name_for_topic(topics_completed)
 
     return templates.TemplateResponse(
         request,
         "post_survey.html",
-        {"labels": POST_SURVEY_LABELS, "ai_name": AI_NAME},
+        {
+            "labels":       POST_SURVEY_LABELS,
+            "ai_name":      current_ai,
+            "topic_index":  topics_completed + 1,
+            "num_topics":   3,
+        },
     )
 
 
@@ -247,8 +266,8 @@ def _next_step(participant: dict) -> str:
         return "/survey"
     if not participant.get("intro_completed"):
         return "/intro"
-    if not participant.get("chat_completed"):
-        return "/chat"
-    if not participant.get("post_survey_completed"):
+    if participant.get("awaiting_survey"):
         return "/post-survey"
-    return "/complete"
+    if (participant.get("topics_completed", 0) or 0) >= 3:
+        return "/complete"
+    return "/chat"

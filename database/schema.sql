@@ -256,6 +256,15 @@ ALTER TABLE participants ADD COLUMN IF NOT EXISTS education                   TE
 -- ── Migration: mental health screening (run once in Supabase SQL Editor) ─────
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS mental_health_screening     TEXT;
 
+-- ── Migration: per-topic flow — chat → post-survey × 3 ──────────────────────
+-- Each topic now has its own chat session + its own post-survey.
+ALTER TABLE participants     ADD COLUMN IF NOT EXISTS topics_completed INT NOT NULL DEFAULT 0;
+ALTER TABLE participants     ADD COLUMN IF NOT EXISTS awaiting_survey  BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS topic_index      INT;
+ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS ai_name          TEXT;
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS topic_index      INT;
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS ai_name          TEXT;
+
 -- ── Migration: Latin-square topic order (run once in Supabase SQL Editor) ────
 -- Each participant now goes through ALL 3 topics in a counterbalanced order.
 -- assigned_topic_order ∈ {'ABC','BCA','CAB'}.

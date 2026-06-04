@@ -155,7 +155,9 @@ LLM_TEMPERATURE = 0.7
 LLM_MAX_TOKENS = 500
 CONVERSATION_ROUNDS = 5
 
-AI_NAME = "Sage"
+# Per-topic AI names (Sage → Willow → Juniper across the 3 topics)
+AI_NAMES = ["Sage", "Willow", "Juniper"]
+AI_NAME = AI_NAMES[0]   # kept for legacy code that still references AI_NAME
 
 # ── Voice pipeline constants ───────────────────────────────────────────────────
 
@@ -163,11 +165,11 @@ TTS_VOICE     = "nova"
 TTS_MODEL     = "tts-1"
 WHISPER_MODEL = "whisper-1"
 
-INTRO_TURNS      = 1
-PER_TOPIC_TURNS  = 5
+# Each topic is its OWN chat session: 6 turns total per topic
+# (turn 1 = intro/opening, turns 2-5 = story, turn 6 = closing)
+PER_TOPIC_TURNS  = 6
 NUM_TOPICS       = 3
-STORY_TURNS      = NUM_TOPICS * PER_TOPIC_TURNS   # 15
-MAX_TURNS        = INTRO_TURNS + STORY_TURNS      # 16 total
+MAX_TURNS        = PER_TOPIC_TURNS   # per-session cap
 
 # Latin-square topic orders (A = social_anxiety, B = rumination, C = anticipatory_anxiety)
 TOPIC_ORDERS = {
@@ -182,96 +184,79 @@ TOPIC_DESCRIPTIONS = {
     "anticipatory_anxiety": "something coming up in your life that you've been feeling anxious or uncertain about",
 }
 
-OPENING_MESSAGE = (
-    "Hi there! I'm really glad you're here. Before we dive in, I'd love to know "
-    "a little about you — could you tell me your name, and maybe one thing you enjoy doing?"
-)
+
+def ai_name_for_topic(topics_completed: int) -> str:
+    """Return AI name for the topic the participant is CURRENTLY working on."""
+    idx = max(0, min(topics_completed, NUM_TOPICS - 1))
+    return AI_NAMES[idx]
 
 
-def topic_for_turn(turn_number: int, topic_order: str):
-    """Return the topic name for a given turn (None for intro / out-of-range)."""
-    if turn_number <= INTRO_TURNS:
-        return None
-    topics = TOPIC_ORDERS.get(topic_order)
-    if not topics:
-        return None
-    idx = (turn_number - INTRO_TURNS - 1) // PER_TOPIC_TURNS
-    if idx < 0 or idx >= len(topics):
-        return None
+def current_topic_for_participant(topic_order: str, topics_completed: int) -> str:
+    """Topic key (e.g. 'social_anxiety') the participant is CURRENTLY on."""
+    topics = TOPIC_ORDERS.get(topic_order, TOPIC_ORDERS["ABC"])
+    idx = max(0, min(topics_completed, NUM_TOPICS - 1))
     return topics[idx]
 
 
-def turn_phase(turn_number: int, topic_order: str) -> str:
-    """Returns one of: intro, story, transition, closing.
-    intro = first AI response (acknowledges + invites topic 1).
-    Subsequent topics are introduced by the prior topic's transition turn,
-    so there's no separate `topic_open` phase.
-    """
-    if turn_number <= INTRO_TURNS:
+def opening_message(ai_name: str, topic: str, is_first_topic: bool) -> str:
+    """The greeting the AI speaks when /chat first loads for a topic."""
+    if is_first_topic:
+        return (
+            f"Hi there, I'm {ai_name}. I'm really glad you're here. "
+            "Whenever you're ready, please take a look at the topic on the left "
+            "and share what comes to mind."
+        )
+    return (
+        f"Hi, I'm {ai_name}. Take a look at the topic on the left — "
+        "whenever you're ready, take your time and share what comes to mind."
+    )
+
+
+def turn_phase(turn_number: int) -> str:
+    """Phase within a single topic session: intro / story / closing."""
+    if turn_number <= 1:
         return "intro"
-    topics = TOPIC_ORDERS.get(topic_order, [])
-    idx = (turn_number - INTRO_TURNS - 1) // PER_TOPIC_TURNS
-    pos = (turn_number - INTRO_TURNS - 1) % PER_TOPIC_TURNS
-    is_last_topic = idx == len(topics) - 1
-    if pos == PER_TOPIC_TURNS - 1:
-        return "closing" if is_last_topic else "transition"
+    if turn_number >= MAX_TURNS:
+        return "closing"
     return "story"
 
 
-def build_system_prompt(topic_order: str, turn_number: int) -> str:
-    topics = TOPIC_ORDERS.get(topic_order, [])
-    phase  = turn_phase(turn_number, topic_order)
-
-    cur_topic = topic_for_turn(turn_number, topic_order)
-    cur_desc  = TOPIC_DESCRIPTIONS.get(cur_topic, "") if cur_topic else ""
+def build_system_prompt(ai_name: str, topic: str, turn_number: int) -> str:
+    """System prompt for the LLM, per-turn within a single topic session."""
+    desc  = TOPIC_DESCRIPTIONS.get(topic, topic)
+    phase = turn_phase(turn_number)
 
     intro_block = (
-        f"You are {AI_NAME}, a warm and empathic AI conversation partner taking part "
+        f"You are {ai_name}, a warm and empathic AI conversation partner taking part "
         "in a research study.\n\n"
-        f"The participant will be invited to share about three topics, in this order: "
-        f"{', '.join(TOPIC_DESCRIPTIONS.get(t, t) for t in topics)}.\n"
+        f"The participant has been invited to share about: {desc}.\n"
     )
 
     if phase == "intro":
-        first_desc = TOPIC_DESCRIPTIONS.get(topics[0], "") if topics else ""
         body = (
-            f"\nCURRENT PHASE — Introduction (turn {turn_number}):\n"
-            "You have just asked the participant their name and one thing they enjoy. "
-            "Respond warmly (1 sentence) acknowledging what they shared, "
-            "then immediately invite them to share about the FIRST topic. "
-            f"Frame it as: \"Now I'd love to hear about {first_desc}. "
-            "Take your time and share whatever comes to mind.\" "
-            "Total response: 2–3 sentences.\n"
+            f"\nCURRENT PHASE — Opening (turn {turn_number}):\n"
+            "The participant has just made their first attempt to share. "
+            "Respond warmly (2–3 sentences): briefly acknowledge what they've said, "
+            "then ask exactly one open follow-up question to help them keep going on this topic.\n"
         )
-    elif phase == "story":
-        body = (
-            f"\nCURRENT PHASE — Story sharing (turn {turn_number}):\n"
-            f"The participant is sharing about: {cur_desc}.\n"
-            "Listen with empathy, reflect back what they've shared, and ask exactly one "
-            "thoughtful follow-up question to help them continue opening up on this topic.\n"
-        )
-    elif phase == "transition":
-        idx = topics.index(cur_topic) if cur_topic in topics else 0
-        body = (
-            f"\nCURRENT PHASE — Closing topic {idx + 1}/{NUM_TOPICS} (turn {turn_number}):\n"
-            f"This is the LAST turn for the current topic ({cur_desc}). "
-            "You MUST give a warm closing response, REGARDLESS of what the participant just said. "
-            "Do NOT ask any follow-up question. Do NOT invite them to share more. "
-            "Even if their last message was brief, off-topic, confused, or unclear, you still give a closing. "
-            "Format (2–3 sentences total): "
-            "(1) Briefly acknowledge the time you spent together on this topic; "
-            "(2) Offer a warm, empathic note (e.g., \"What you shared matters\" or \"Thank you for taking the time with me on this\"); "
-            "(3) Signal that this part of the conversation is complete (e.g., \"Let's take a moment before we move on.\"). "
-            "Do NOT introduce, name, or hint at the next topic — that will be announced separately afterwards.\n"
-        )
-    else:  # closing
+    elif phase == "closing":
         body = (
             f"\nCURRENT PHASE — Closing (final turn, {turn_number}):\n"
-            "This is the very last turn of the entire conversation. "
-            "Do NOT ask any follow-up questions. Instead, give a warm, genuine closing response: "
-            "acknowledge what the participant has shared across all three topics, "
-            "offer a brief empathic reflection, and say a kind farewell. "
-            "Make them feel heard and appreciated.\n"
+            "This is the LAST turn for this topic. "
+            "You MUST give a warm closing response, REGARDLESS of what the participant just said. "
+            "Do NOT ask any follow-up question. Do NOT invite them to share more. "
+            "Format (2–3 sentences total): "
+            "(1) briefly acknowledge the time you spent together on this topic; "
+            "(2) offer a warm, empathic note "
+            "(e.g., \"Thank you for taking the time with me on this\"); "
+            "(3) signal that this part of the conversation is complete.\n"
+        )
+    else:  # story
+        body = (
+            f"\nCURRENT PHASE — Story sharing (turn {turn_number}):\n"
+            f"The participant is sharing about: {desc}.\n"
+            "Listen with empathy, reflect back what they've shared, and ask exactly one "
+            "thoughtful follow-up question to help them continue opening up on this topic.\n"
         )
 
     rules = (
@@ -282,6 +267,10 @@ def build_system_prompt(topic_order: str, turn_number: int) -> str:
         "- Never mention that you are an AI or part of a study unless the participant directly asks.\n"
     )
     return intro_block + body + rules
+
+
+# Legacy export kept so old imports don't break
+OPENING_MESSAGE = opening_message(AI_NAMES[0], "social_anxiety", True)
 
 # ── App settings ──────────────────────────────────────────────────────────────
 

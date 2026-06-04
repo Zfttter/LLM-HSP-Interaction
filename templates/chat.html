@@ -23,7 +23,7 @@
     <div class="sage-identity-card">
       <span class="sage-avatar">🌿</span>
       <div class="sage-id-text">
-        <div class="sage-name">Sage</div>
+        <div class="sage-name">{{ ai_name }}</div>
         <div class="sage-subtitle">Here to listen</div>
       </div>
     </div>
@@ -40,24 +40,20 @@
       </div>
     </div>
 
-    <!-- Topic prompts — one per topic, only current visible -->
-    {% for t in ordered_topics %}
-    <div class="sage-topic-box sage-topic-box--static topic-prompt-box"
-         data-topic-idx="{{ loop.index0 }}"
-         {% if not loop.first %}style="display:none;"{% endif %}>
+    <!-- Topic prompt — only the topic the participant is currently on -->
+    <div class="sage-topic-box sage-topic-box--static topic-prompt-box">
       <div class="sage-topic-header">
-        Your topic — <strong>{{ t.name }}</strong>
+        Your topic — <strong>{{ topic_name }}</strong>
       </div>
       <div class="sage-topic-body">
-        <p class="sage-topic-prompt">{{ t.prompt }}</p>
+        <p class="sage-topic-prompt">{{ topic_prompt }}</p>
       </div>
     </div>
-    {% endfor %}
 
     <!-- Private scratchpad -->
     <div class="sage-scratchpad-box">
       <div class="sage-scratchpad-label">
-        ✏️ Your private notes — not shared with Sage (optional)
+        ✏️ Your private notes — not shared with {{ ai_name }} (optional)
       </div>
       <textarea
         id="scratchpad"
@@ -91,10 +87,10 @@
     </div>
 
     <!-- Topic indicator — current topic name + position -->
-    <div class="chat-topic-indicator" id="chatTopicIndicator">
-      <span id="chatTopicPosition">Topic 1 / {{ num_topics }}</span>
+    <div class="chat-topic-indicator">
+      <span>Topic {{ topic_index }} / {{ num_topics }}</span>
       <span class="chat-topic-divider">·</span>
-      <span id="chatTopicName">{{ ordered_topics[0].name }}</span>
+      <span>{{ topic_name }}</span>
     </div>
 
     <!-- Status bar — centered, top of chat area -->
@@ -149,28 +145,16 @@
 
 </div>
 
-<!-- Transition modal (between topics) -->
-<div id="transitionModal" class="modal" style="display:none;">
-  <div class="modal-content sage-modal-content">
-    <div class="sage-modal-leaf">🌿</div>
-    <h2 class="sage-modal-title">Moving to the next topic</h2>
-    <p class="sage-modal-body" id="transitionBody">
-      You're done with this topic. Take a moment, then when you're ready, we'll continue with the next one.
-    </p>
-    <button class="sage-ready-btn" id="transitionContinueBtn" style="margin-top:1.25rem;">
-      Continue &rarr;
-    </button>
-  </div>
-</div>
-
-<!-- Completion modal -->
+<!-- Topic-done modal — appears after the final turn of THIS topic's chat -->
 <div id="redirectModal" class="modal" style="display:none;">
   <div class="modal-content sage-modal-content">
     <div class="sage-modal-leaf">🌿</div>
     <h2 class="sage-modal-title">Thank you for sharing</h2>
-    <p class="sage-modal-body">You've completed the conversation.</p>
+    <p class="sage-modal-body" id="redirectModalBody">
+      You've finished this conversation. Before continuing, please answer a few brief questions about how it felt.
+    </p>
     <button class="sage-ready-btn" onclick="window.location.href='/post-survey'" style="margin-top:1.25rem;">
-      Let's go &rarr;
+      Continue to questionnaire &rarr;
     </button>
   </div>
 </div>
@@ -181,7 +165,8 @@
 <script>
   const PER_TOPIC_TURNS = {{ per_topic_turns }};
   const NUM_TOPICS      = {{ num_topics }};
-  const TOPIC_NAMES     = {{ ordered_topics | map(attribute='name') | list | tojson }};
+  const TOPIC_INDEX     = {{ topic_index }};
+  const AI_NAME         = {{ ai_name | tojson }};
 </script>
 <script src="/static/js/chat.js"></script>
 {% endblock %}

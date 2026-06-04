@@ -489,6 +489,8 @@ textarea.form-control { resize: vertical; }
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  text-align: justify;
+  hyphens: auto;
 }
 .user-message .msg-bubble {
   background: var(--primary);
@@ -1503,6 +1505,8 @@ p  { margin-bottom: 0.75rem; }
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  text-align: justify;
+  hyphens: auto;
 }
 .user-message .msg-bubble {
   background: var(--primary);
@@ -1708,6 +1712,8 @@ p  { margin-bottom: 0.75rem; }
   color: #555;
   line-height: 1.6;
   margin: 0;
+  text-align: justify;
+  hyphens: auto;
 }
 /* Private scratchpad */
 .sage-scratchpad-box {

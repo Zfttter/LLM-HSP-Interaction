@@ -3,9 +3,9 @@
 
 {% block content %}
 <div class="card">
-  <div class="section-eyebrow">Follow-up &middot; A few final questions</div>
+  <div class="section-eyebrow">Follow-up {{ topic_index }} of {{ num_topics }} &middot; A few questions about {{ ai_name }}</div>
   <h1>How did that feel?</h1>
-  <p class="lead">No right or wrong answers — just your honest impression of the conversation.</p>
+  <p class="lead">No right or wrong answers — just your honest impression of the conversation with <strong>{{ ai_name }}</strong>.</p>
 
   <!-- ── Data quality notice ─────────────────────────────────────────────── -->
   <div class="data-quality-notice">
@@ -393,7 +393,8 @@
       ></textarea>
     </div>
 
-    <!-- ── Data Sharing Consent ───────────────────────────────────────────── -->
+    {% if topic_index == num_topics %}
+    <!-- ── Data Sharing Consent — only on the FINAL post-survey ─────────── -->
     <div class="post-section">
       <div class="post-section-header">Data Sharing Consent</div>
       <p class="post-section-instruction">
@@ -407,6 +408,7 @@
         Your choice will not affect your eligibility for compensation or how your data is used within this study.
       </p>
     </div>
+    {% endif %}
 
     <div class="form-actions">
       <button type="submit" class="btn btn-primary btn-large" id="postSubmitBtn" disabled>
@@ -428,8 +430,9 @@ const requiredRadios = [
   "affective_empathy_1", "affective_empathy_2", "cognitive_empathy",
   "associative_empathy", "emotional_responsiveness", "empathic_accuracy",
   "implicit_understanding", "closeness_ios", "emotional_relief",
-  "perceived_sycophancy", "data_sharing_consent"
-];
+  "perceived_sycophancy",
+  {% if topic_index == num_topics %}"data_sharing_consent"{% endif %}
+].filter(Boolean);
 
 function allAnswered() {
   const radiosOk = requiredRadios.every(function (name) {
