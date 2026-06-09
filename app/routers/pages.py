@@ -129,6 +129,10 @@ def chat(request: Request):
     current_key  = current_topic_for_participant(topic_order, topics_completed)
     current_ai   = ai_name_for_topic(topics_completed)
 
+    # Cache participant state in session so /api/greeting doesn't need to query DB
+    request.session["cached_topics_completed"] = topics_completed
+    request.session["cached_topic_order"]      = topic_order
+
     # Only reset the voice session when moving to a NEW topic (not on plain refresh)
     expected_topic_idx = topics_completed + 1
     if request.session.get("topic_session_idx") != expected_topic_idx:

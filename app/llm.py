@@ -56,6 +56,38 @@ def _groq() -> openai.OpenAI:
     return _groq_client
 
 
+_RETRYABLE = (
+    openai.APIConnectionError,
+    openai.APITimeoutError,
+    openai.InternalServerError,   # 5xx
+    openai.RateLimitError,        # 429 — Gemini's free tier still slips through
+    anthropic.APIConnectionError,
+    anthropic.APITimeoutError,
+    anthropic.InternalServerError,
+    anthropic.RateLimitError,
+)
+
+
+def _with_retry(fn, *, retries: int = 1, backoff: float = 1.5):
+    """Call fn(), retry on transient API errors (5xx, timeout, rate-limit).
+    Per-call timeout is set on the client (see _call_openai_compat); keep retries
+    small so participants don't wait >1 minute total in the worst case.
+    """
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            return fn()
+        except _RETRYABLE as exc:
+            last_exc = exc
+            if attempt < retries:
+                wait = backoff * (attempt + 1)
+                print(f"[LLM] transient error ({type(exc).__name__}), retry {attempt+1}/{retries} in {wait}s")
+                time.sleep(wait)
+                continue
+            raise
+    raise last_exc  # pragma: no cover
+
+
 def call_llm(
     platform: str,
     conversation_history: list[dict],
@@ -67,40 +99,54 @@ def call_llm(
 
     start = time.time()
 
-    if platform in ("gpt-4o", "gpt-4o-mini"):
-        text = _call_openai_compat(_openai(), platform, conversation_history, actual_system, actual_max_tokens)
-    elif platform == "claude-sonnet-4-6":
-        text = _call_anthropic(conversation_history, actual_system, actual_max_tokens)
-    elif platform == "gemini-2.0-flash":
-        text = _call_openai_compat(_gemini(), platform, conversation_history, actual_system, actual_max_tokens)
-    elif platform == "deepseek-chat":
-        text = _call_openai_compat(_deepseek(), platform, conversation_history, actual_system, actual_max_tokens)
-    elif platform == "llama-3.3-70b-versatile":
-        text = _call_openai_compat(_groq(), platform, conversation_history, actual_system, actual_max_tokens)
-    else:
-        raise ValueError(f"Unknown platform: {platform}")
+    def _call():
+        if platform in ("gpt-4o", "gpt-4o-mini"):
+            return _call_openai_compat(_openai(), platform, conversation_history, actual_system, actual_max_tokens)
+        elif platform == "claude-sonnet-4-6":
+            return _call_anthropic(conversation_history, actual_system, actual_max_tokens)
+        elif platform == "gemini-2.5-flash":
+            return _call_openai_compat(_gemini(), platform, conversation_history, actual_system, actual_max_tokens)
+        elif platform == "deepseek-chat":
+            return _call_openai_compat(_deepseek(), platform, conversation_history, actual_system, actual_max_tokens)
+        elif platform == "llama-3.3-70b-versatile":
+            return _call_openai_compat(_groq(), platform, conversation_history, actual_system, actual_max_tokens)
+        else:
+            raise ValueError(f"Unknown platform: {platform}")
+
+    text = _with_retry(_call)
 
     elapsed_ms = int((time.time() - start) * 1000)
     return text, elapsed_ms
 
 
+# Per-call hard timeout. SDK default is 600s (10 min!) — far too long for a
+# voice study where participants are watching a "thinking…" indicator.
+_LLM_TIMEOUT_S = 30
+
+
 def _call_openai_compat(client, model, history, system_prompt, max_tokens):
     messages = [{"role": "system", "content": system_prompt}] + history
+    t0 = time.time()
     response = client.chat.completions.create(
         model=model,
         messages=messages,
         temperature=LLM_TEMPERATURE,
         max_tokens=max_tokens,
+        timeout=_LLM_TIMEOUT_S,           # passed directly to .create()
     )
+    print(f"[LLM] {model} returned in {time.time()-t0:.2f}s")
     return response.choices[0].message.content.strip()
 
 
 def _call_anthropic(history, system_prompt, max_tokens):
+    t0 = time.time()
     response = _anthropic().messages.create(
         model="claude-sonnet-4-6",
         system=system_prompt,
         messages=history,
         temperature=LLM_TEMPERATURE,
         max_tokens=max_tokens,
+        timeout=_LLM_TIMEOUT_S,
     )
+    print(f"[LLM] claude-sonnet-4-6 returned in {time.time()-t0:.2f}s")
     return response.content[0].text.strip()

@@ -10,3 +10,4 @@ env/
 dist/
 build/
 .pytest_cache/
+.tts_cache/

@@ -18,8 +18,29 @@ from app.config import (
     AI_NAMES, ai_name_for_topic, current_topic_for_participant, opening_message,
 )
 
+import pathlib
+
 _history_cache: dict = {}
 _pending_cache: dict = {}
+
+# Persistent disk cache for greeting TTS audio.
+# 3 AI names × 3 voices × 2 (first-topic/repeat) = 18 max files, ~30KB each.
+# Survives uvicorn restarts so devs don't wait every time.
+_TTS_CACHE_DIR = pathlib.Path(".tts_cache")
+_TTS_CACHE_DIR.mkdir(exist_ok=True)
+
+
+def _get_greeting_tts(ai_name: str, voice: str, is_first_topic: bool, text: str) -> str:
+    key = f"{ai_name}_{voice}_{'first' if is_first_topic else 'repeat'}.b64"
+    path = _TTS_CACHE_DIR / key
+    if path.exists():
+        return path.read_text()
+    tts_b64 = text_to_speech(text, voice)
+    try:
+        path.write_text(tts_b64)
+    except Exception as exc:
+        print(f"[TTS cache] write failed for {key}: {exc}")
+    return tts_b64
 
 router = APIRouter()
 
@@ -260,22 +281,32 @@ async def voice_select(request: Request):
 
 @router.get("/greeting")
 def get_greeting(request: Request):
+    import time
+    t0 = time.perf_counter()
+
     participant_id = request.session.get("participant_id")
     if not participant_id:
         return JSONResponse({"error": "No session"}, status_code=400)
 
-    # Always start a fresh voice session for the CURRENT topic
     if not request.session.get("voice_session_id"):
         request.session["voice_session_id"] = str(uuid.uuid4())
         request.session["turn_number"] = 0
 
     session_id = request.session["voice_session_id"]
 
-    participant      = db_.get_participant_by_id(participant_id)
-    topics_completed = participant.get("topics_completed", 0) or 0
-    topic_order      = participant.get("assigned_topic_order", "ABC")
-    current_topic    = current_topic_for_participant(topic_order, topics_completed)
-    current_ai       = ai_name_for_topic(topics_completed)
+    # Prefer cached values from session (set by /chat route) — saves a DB round-trip.
+    # Falls back to DB only if session is missing the cache (e.g. user hit /greeting directly).
+    t1 = time.perf_counter()
+    topics_completed = request.session.get("cached_topics_completed")
+    topic_order      = request.session.get("cached_topic_order")
+    if topics_completed is None or topic_order is None:
+        participant      = db_.get_participant_by_id(participant_id)
+        topics_completed = participant.get("topics_completed", 0) or 0
+        topic_order      = participant.get("assigned_topic_order", "ABC")
+    t2 = time.perf_counter()
+
+    current_topic = current_topic_for_participant(topic_order, topics_completed)
+    current_ai    = ai_name_for_topic(topics_completed)
 
     opening = opening_message(current_ai, current_topic, is_first_topic=(topics_completed == 0))
 
@@ -284,7 +315,13 @@ def get_greeting(request: Request):
         history.append({"role": "assistant", "content": opening})
 
     tts_voice = request.session.get("tts_voice", "nova")
-    tts_b64 = text_to_speech(opening, tts_voice)
+
+    t3 = time.perf_counter()
+    tts_b64 = _get_greeting_tts(current_ai, tts_voice, topics_completed == 0, opening)
+    t4 = time.perf_counter()
+
+    print(f"[greeting] DB={t2-t1:.2f}s  TTS={t4-t3:.2f}s  total={t4-t0:.2f}s  "
+          f"ai={current_ai} voice={tts_voice} cached={(t4-t3)<0.5}")
     return JSONResponse({
         "ok": True,
         "opening_text": opening,
@@ -311,6 +348,8 @@ async def transcribe_turn(request: Request, audio: UploadFile = File(...)):
     audio_url  = db_.upload_audio(participant_id, session_id, turn_number, audio_bytes)
     transcript = transcribe_audio(audio_bytes)
 
+    # Always queue — even if Whisper returned empty, let the user edit/type
+    # in the preview textarea before submitting.
     _pending_cache[session_id] = {
         "transcript":  transcript,
         "audio_url":   audio_url,
@@ -327,8 +366,14 @@ async def process_turn(request: Request):
 
     session_id = request.session.get("voice_session_id", "")
     pending    = _pending_cache.pop(session_id, {})
-    transcript = pending.get("transcript", "").strip()
-    audio_url  = pending.get("audio_url", "")
+
+    # Prefer the (possibly edited) transcript sent by the client; fall back to the
+    # Whisper output from the transcribe step.
+    form = await request.form()
+    edited_transcript = str(form.get("transcript", "")).strip()
+    transcript = edited_transcript or pending.get("transcript", "").strip()
+
+    audio_url   = pending.get("audio_url", "")
     turn_number = pending.get("turn_number", request.session.get("turn_number", 0) + 1)
 
     if not transcript:
@@ -422,7 +467,9 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
     closeness_ios            = fi("closeness_ios")
     emotional_relief         = fi("emotional_relief")
     perceived_sycophancy     = fi("perceived_sycophancy")
-    mbti_guess               = str(form.get("mbti_guess", "")).strip()
+    mbti_guess               = str(form.get("mbti_guess", "")).strip().upper()
+    if mbti_guess == "UNKNOWN":
+        mbti_guess = ""
     data_sharing_consent     = str(form.get("data_sharing_consent", "")) == "yes"
 
     # Validate 1-7 fields

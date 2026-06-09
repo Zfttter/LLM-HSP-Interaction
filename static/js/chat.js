@@ -94,6 +94,17 @@ function stopRecording() {
 
   recorder.onstop = async () => {
     const blob = new Blob(audioChunks, { type: recorder.mimeType });
+    console.log(`[recording] chunks=${audioChunks.length}, blob size=${blob.size}B`);
+
+    // < 8KB ≈ <1 second of speech (or pure silence). Likely a mic problem.
+    if (blob.size < 8000) {
+      setState("IDLE");
+      showPTT();
+      // call last so the error message isn't overwritten by IDLE's default text
+      setStatus("error", "Recording seems empty — please check your mic and try again.");
+      return;
+    }
+
     await transcribeAudio(blob);
   };
   recorder.stop();
@@ -113,13 +124,19 @@ async function transcribeAudio(blob) {
     fd.append("audio", blob, "audio.webm");
     const res  = await fetch("/api/transcribe", { method: "POST", body: fd });
     const data = await res.json();
-    if (!data.ok) throw new Error("Transcription failed");
-
+    if (!data.ok) {
+      // Backend reported a friendly reason (e.g. Whisper got empty text)
+      setState("IDLE");
+      showPTT();
+      setStatus("error", data.error || "Transcription failed — please try again.");
+      return;
+    }
     showPreview(data.transcript);
     setState("PREVIEW");
   } catch (err) {
-    setStatus("error", "Transcription error — please try again.");
     setState("IDLE");
+    showPTT();
+    setStatus("error", "Transcription error — please try again.");
   }
 }
 
@@ -144,7 +161,9 @@ async function submitTurn() {
   updateProgress(thisTurn);
 
   try {
-    const res  = await fetch("/api/turn", { method: "POST" });
+    const fd = new FormData();
+    fd.append("transcript", transcript);   // send the (possibly edited) text
+    const res  = await fetch("/api/turn", { method: "POST", body: fd });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "Server error");
 

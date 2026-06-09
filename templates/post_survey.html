@@ -359,10 +359,10 @@
     <!-- ── Bonus: MBTI guess (required) ───────────────────────────────────── -->
     <div class="form-group bonus-question">
       <label for="mbti_guess">
-        <strong>15.</strong> If you had to describe {{ ai_name }}'s personality type using MBTI, what would it be and why?
+        <strong>15.</strong> If you had to describe {{ ai_name }}'s personality type using MBTI, what would it be?
       </label>
       <div class="mbti-guide">
-        <p class="mbti-guide-intro">MBTI describes personality across four dimensions. Pick one letter from each pair, then write a 4-letter type (e.g. <em>INFJ</em>):</p>
+        <p class="mbti-guide-intro">MBTI describes personality across four dimensions. Each type is one letter from each pair:</p>
         <div class="mbti-dims">
           <div class="mbti-dim">
             <span class="mbti-letters"><strong>E</strong> vs <strong>I</strong></span>
@@ -382,15 +382,34 @@
           </div>
         </div>
       </div>
-      <textarea
-        id="mbti_guess"
-        name="mbti_guess"
-        class="form-control"
-        rows="3"
-        maxlength="500"
-        placeholder="e.g. INFJ — because it was deeply empathetic and thoughtful"
-        required
-      ></textarea>
+      <select id="mbti_guess" name="mbti_guess" class="form-control form-control-sm" required style="max-width: 280px;">
+        <option value="" disabled selected>— Please select —</option>
+        <optgroup label="Analysts">
+          <option value="INTJ">INTJ — Architect</option>
+          <option value="INTP">INTP — Logician</option>
+          <option value="ENTJ">ENTJ — Commander</option>
+          <option value="ENTP">ENTP — Debater</option>
+        </optgroup>
+        <optgroup label="Diplomats">
+          <option value="INFJ">INFJ — Advocate</option>
+          <option value="INFP">INFP — Mediator</option>
+          <option value="ENFJ">ENFJ — Protagonist</option>
+          <option value="ENFP">ENFP — Campaigner</option>
+        </optgroup>
+        <optgroup label="Sentinels">
+          <option value="ISTJ">ISTJ — Logistician</option>
+          <option value="ISFJ">ISFJ — Defender</option>
+          <option value="ESTJ">ESTJ — Executive</option>
+          <option value="ESFJ">ESFJ — Consul</option>
+        </optgroup>
+        <optgroup label="Explorers">
+          <option value="ISTP">ISTP — Virtuoso</option>
+          <option value="ISFP">ISFP — Adventurer</option>
+          <option value="ESTP">ESTP — Entrepreneur</option>
+          <option value="ESFP">ESFP — Entertainer</option>
+        </optgroup>
+        <option value="unknown">I don't know / Can't tell</option>
+      </select>
     </div>
 
     {% if topic_index == num_topics %}
@@ -412,7 +431,11 @@
 
     <div class="form-actions">
       <button type="submit" class="btn btn-primary btn-large" id="postSubmitBtn" disabled>
-        Submit and get completion code &rarr;
+        {% if topic_index == num_topics %}
+          Submit and get completion code &rarr;
+        {% else %}
+          Continue to next conversation &rarr;
+        {% endif %}
       </button>
     </div>
 
@@ -442,15 +465,11 @@ function allAnswered() {
     });
     return checked;
   });
-  const textOk = document.getElementById("mbti_guess").value.trim().length > 0;
-  return radiosOk && textOk;
+  const mbtiOk = !!document.getElementById("mbti_guess").value;
+  return radiosOk && mbtiOk;
 }
 
 form.addEventListener("change", function () {
-  submitBtn.disabled = !allAnswered();
-});
-
-document.getElementById("mbti_guess").addEventListener("input", function () {
   submitBtn.disabled = !allAnswered();
 });
 

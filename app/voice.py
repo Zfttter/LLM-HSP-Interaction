@@ -15,11 +15,20 @@ def transcribe_audio(audio_bytes: bytes) -> str:
     client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
     buf = io.BytesIO(audio_bytes)
     buf.name = "audio.webm"           # Whisper needs a filename hint
-    result = client.audio.transcriptions.create(
-        model=WHISPER_MODEL,
-        file=buf,
-    )
-    return result.text.strip()
+    try:
+        result = client.audio.transcriptions.create(
+            model=WHISPER_MODEL,
+            file=buf,
+            language="en",            # study is English-only — don't let Whisper guess
+            temperature=0,
+        )
+    except Exception as exc:
+        print(f"[Whisper] transcription failed (bytes={len(audio_bytes)}): {exc}")
+        raise
+
+    text = (result.text or "").strip()
+    print(f"[Whisper] audio={len(audio_bytes)}B → {len(text)} chars: {text[:120]!r}")
+    return text
 
 
 def text_to_speech(text: str, voice: str = TTS_VOICE) -> str:

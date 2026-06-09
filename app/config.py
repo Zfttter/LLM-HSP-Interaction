@@ -84,7 +84,7 @@ PLATFORMS = [
     "gpt-4o",
     "gpt-4o-mini",
     "claude-sonnet-4-6",
-    "gemini-2.0-flash",
+    "gemini-2.5-flash",
     "deepseek-chat",
     "llama-3.3-70b-versatile",
 ]
@@ -93,7 +93,7 @@ PLATFORM_DISPLAY = {
     "gpt-4o": "GPT-4o",
     "gpt-4o-mini": "GPT-4o Mini",
     "claude-sonnet-4-6": "Claude Sonnet",
-    "gemini-2.0-flash": "Gemini 2.0 Flash",
+    "gemini-2.5-flash": "Gemini 2.5 Flash",
     "deepseek-chat": "DeepSeek Chat",
     "llama-3.3-70b-versatile": "Llama 3.3 70B",
 }
@@ -152,7 +152,7 @@ SYSTEM_PROMPT = (
 )
 
 LLM_TEMPERATURE = 0.7
-LLM_MAX_TOKENS = 500
+LLM_MAX_TOKENS = 1200
 CONVERSATION_ROUNDS = 5
 
 # Per-topic AI names (Sage → Willow → Juniper across the 3 topics)
@@ -167,9 +167,14 @@ WHISPER_MODEL = "whisper-1"
 
 # Each topic is its OWN chat session: 6 turns total per topic
 # (turn 1 = intro/opening, turns 2-5 = story, turn 6 = closing)
-PER_TOPIC_TURNS  = 6
+# Each topic session has 6 internal turns:
+#   Turn 1     = warm-up / self-intro (AI asks a friendly question, user answers).
+#                Does NOT count as a "moment" — sidebar dots stay at 0/5.
+#   Turn 2-5   = story sharing on the topic — 4 of the 5 moments.
+#   Turn 6     = closing — the 5th moment.
+PER_TOPIC_TURNS  = 5    # number of "moments" shown to the participant
+MAX_TURNS        = 6    # actual internal turn count (1 intro + 5 moments)
 NUM_TOPICS       = 3
-MAX_TURNS        = PER_TOPIC_TURNS   # per-session cap
 
 # Latin-square topic orders (A = social_anxiety, B = rumination, C = anticipatory_anxiety)
 TOPIC_ORDERS = {
@@ -199,16 +204,17 @@ def current_topic_for_participant(topic_order: str, topics_completed: int) -> st
 
 
 def opening_message(ai_name: str, topic: str, is_first_topic: bool) -> str:
-    """The greeting the AI speaks when /chat first loads for a topic."""
+    """The greeting the AI speaks when /chat first loads for a topic.
+    Asks a brief warm-up question so the first user turn is a low-stakes self-intro
+    rather than the topic itself.
+    """
     if is_first_topic:
         return (
             f"Hi there, I'm {ai_name}. I'm really glad you're here. "
-            "Whenever you're ready, please take a look at the topic on the left "
-            "and share what comes to mind."
+            "Before we dive in, could you tell me your name and one thing you enjoy doing?"
         )
     return (
-        f"Hi, I'm {ai_name}. Take a look at the topic on the left — "
-        "whenever you're ready, take your time and share what comes to mind."
+        f"Hi, I'm {ai_name}. Before we begin — how are you feeling right now?"
     )
 
 
@@ -234,10 +240,14 @@ def build_system_prompt(ai_name: str, topic: str, turn_number: int) -> str:
 
     if phase == "intro":
         body = (
-            f"\nCURRENT PHASE — Opening (turn {turn_number}):\n"
-            "The participant has just made their first attempt to share. "
-            "Respond warmly (2–3 sentences): briefly acknowledge what they've said, "
-            "then ask exactly one open follow-up question to help them keep going on this topic.\n"
+            f"\nCURRENT PHASE — Warm-up (turn {turn_number}):\n"
+            "You just asked the participant a brief self-intro question "
+            "(their name + something they enjoy, OR how they're feeling). "
+            "They have just answered it.\n"
+            "Respond in 2-3 sentences: (1) briefly acknowledge what they shared "
+            "(use their name if they gave one); (2) gently invite them to share about "
+            f"the topic on their screen: {desc}. "
+            "Do NOT ask a deep question yet — just open the door warmly.\n"
         )
     elif phase == "closing":
         body = (
