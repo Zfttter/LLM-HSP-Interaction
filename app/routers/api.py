@@ -350,7 +350,10 @@ async def transcribe_turn(request: Request, audio: UploadFile = File(...)):
 
     # Always queue — even if Whisper returned empty, let the user edit/type
     # in the preview textarea before submitting.
+    # `raw_whisper` is the original Whisper output, frozen. `transcript` is what we
+    # pre-fill the preview box with — the user may edit it before submitting.
     _pending_cache[session_id] = {
+        "raw_whisper": transcript,
         "transcript":  transcript,
         "audio_url":   audio_url,
         "turn_number": turn_number,
@@ -367,16 +370,18 @@ async def process_turn(request: Request):
     session_id = request.session.get("voice_session_id", "")
     pending    = _pending_cache.pop(session_id, {})
 
-    # Prefer the (possibly edited) transcript sent by the client; fall back to the
-    # Whisper output from the transcribe step.
+    # The participant may have edited the Whisper output in the preview box.
+    # We save BOTH: the raw Whisper text (for data integrity / cheat detection)
+    # AND the submitted text (what the LLM actually saw).
     form = await request.form()
+    raw_whisper       = pending.get("raw_whisper", pending.get("transcript", "")).strip()
     edited_transcript = str(form.get("transcript", "")).strip()
-    transcript = edited_transcript or pending.get("transcript", "").strip()
+    submitted         = edited_transcript or raw_whisper
 
     audio_url   = pending.get("audio_url", "")
     turn_number = pending.get("turn_number", request.session.get("turn_number", 0) + 1)
 
-    if not transcript:
+    if not submitted:
         return JSONResponse({"error": "No pending transcript"}, status_code=400)
 
     participant   = db_.get_participant_by_id(participant_id)
@@ -389,7 +394,7 @@ async def process_turn(request: Request):
     current_ai    = ai_name_for_topic(topics_completed)
 
     history = _history_cache.setdefault(session_id, [])
-    history.append({"role": "user", "content": transcript})
+    history.append({"role": "user", "content": submitted})
 
     system_prompt = build_system_prompt(current_ai, current_topic, turn_number)
     ai_text, response_time_ms = call_llm(platform, history, system_prompt)
@@ -403,19 +408,20 @@ async def process_turn(request: Request):
     tts_b64   = text_to_speech(ai_text, tts_voice)
 
     db_.save_voice_turn({
-        "participant_id":     participant_id,
-        "session_id":         session_id,
-        "turn_number":        turn_number,
-        "whisper_transcript": transcript,
-        "llm_response_text":  ai_text,
-        "audio_file_url":     audio_url,
-        "tts_voice_used":     tts_voice,
-        "platform":           platform,
-        "hsp_condition":      hsp_condition,
-        "topic":              current_topic,
-        "topic_index":        topics_completed + 1,
-        "ai_name":            current_ai,
-        "response_time_ms":   response_time_ms,
+        "participant_id":         participant_id,
+        "session_id":             session_id,
+        "turn_number":            turn_number,
+        "whisper_transcript":     submitted,     # what the LLM actually saw
+        "whisper_transcript_raw": raw_whisper,   # original Whisper output (frozen)
+        "llm_response_text":      ai_text,
+        "audio_file_url":         audio_url,
+        "tts_voice_used":         tts_voice,
+        "platform":               platform,
+        "hsp_condition":          hsp_condition,
+        "topic":                  current_topic,
+        "topic_index":            topics_completed + 1,
+        "ai_name":                current_ai,
+        "response_time_ms":       response_time_ms,
     })
 
     if is_final:

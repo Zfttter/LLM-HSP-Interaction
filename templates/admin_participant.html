@@ -562,8 +562,12 @@ function renderRight(p) {
     const tNum = turn.turn_number;
     const label = tNum === 1 ? "Intro" : tNum === 6 ? "Closing" : `Turn ${tNum - 1}`;
 
-    const transcript = turn.whisper_transcript || "";
-    const wc = transcript.trim() ? countWords(transcript) : 0;
+    const submitted = turn.whisper_transcript || "";
+    const raw       = turn.whisper_transcript_raw || "";
+    const wasEdited = raw && submitted && raw.trim() !== submitted.trim();
+    const editPct   = wasEdited ? Math.round(100 * editDistance(raw, submitted) / Math.max(raw.length, 1)) : 0;
+
+    const wc = submitted.trim() ? countWords(submitted) : 0;
     const shortWarn = wc > 0 && wc < 10;
     const wcText = wc ? `${wc} word${wc !== 1 ? "s" : ""}` : "no transcript";
 
@@ -572,6 +576,15 @@ function renderRight(p) {
     const audioPath = turn.audio_file_path || turn.audio_file_url || "";
     const audioBtn = audioPath
       ? `<button class="audio-play-btn" onclick="playAudio('${audioPath.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}', this)">▶ Play</button>`
+      : "";
+
+    const editBadge = wasEdited
+      ? `<span class="warn-label" style="background:#fef3c7;color:#92400e">✎ edited ${editPct}%</span>`
+      : "";
+    const rawBlock = wasEdited
+      ? `<div class="conv-text" style="margin-top:6px;padding:6px 9px;background:#f8f4eb;border-left:3px solid #d97706;font-size:11.5px;color:#6b5530">
+           <strong style="color:#92400e;font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px">Raw Whisper:</strong><br>${esc(raw)}
+         </div>`
       : "";
 
     h += `<div class="conv-round">
@@ -584,8 +597,10 @@ function renderRight(p) {
           🎙 Participant
           <span class="conv-meta${shortWarn ? " warn-short" : ""}">${wcText}</span>
           ${shortWarn ? '<span class="warn-label">⚠ short</span>' : ""}
+          ${editBadge}
         </div>
-        <div class="conv-text">${transcript ? esc(transcript) : '<em style="color:#94a3b8">No transcript recorded</em>'}</div>
+        <div class="conv-text">${submitted ? esc(submitted) : '<em style="color:#94a3b8">No transcript recorded</em>'}</div>
+        ${rawBlock}
       </div>
       <div class="conv-turn turn-ai">
         <div class="conv-speaker spk-ai">
@@ -650,6 +665,25 @@ function fmtDate(s) {
 function countWords(text) {
   if (!text) return 0;
   return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+// Levenshtein edit distance — used to flag how heavily a participant edited the raw Whisper text.
+function editDistance(a, b) {
+  if (!a) return b ? b.length : 0;
+  if (!b) return a.length;
+  const m = a.length, n = b.length;
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
 }
 
 function esc(s) {

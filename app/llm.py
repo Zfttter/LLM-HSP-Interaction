@@ -6,8 +6,25 @@ from typing import Optional
 
 import openai
 import anthropic
+import httpx
 
 from app.config import settings, SYSTEM_PROMPT, LLM_TEMPERATURE, LLM_MAX_TOKENS
+
+# Per-call hard timeout enforced at the HTTP layer.
+# SDK-level timeout=X doesn't always get respected by OpenAI-compatible endpoints
+# (DeepSeek, Gemini, Groq) — so we bake the timeout into the httpx client itself.
+_LLM_TIMEOUT_S = 30
+_HTTPX_TIMEOUT = httpx.Timeout(
+    timeout=_LLM_TIMEOUT_S,     # default for all phases
+    connect=10.0,               # but cap connection setup separately
+)
+
+
+def _make_openai_client(api_key: str, base_url: Optional[str] = None) -> openai.OpenAI:
+    http = httpx.Client(timeout=_HTTPX_TIMEOUT)
+    if base_url:
+        return openai.OpenAI(api_key=api_key, base_url=base_url, http_client=http)
+    return openai.OpenAI(api_key=api_key, http_client=http)
 
 _openai_client: Optional[openai.OpenAI] = None
 _anthropic_client: Optional[anthropic.Anthropic] = None
@@ -19,20 +36,23 @@ _groq_client: Optional[openai.OpenAI] = None
 def _openai() -> openai.OpenAI:
     global _openai_client
     if _openai_client is None:
-        _openai_client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+        _openai_client = _make_openai_client(settings.OPENAI_API_KEY)
     return _openai_client
 
 def _anthropic() -> anthropic.Anthropic:
     global _anthropic_client
     if _anthropic_client is None:
-        _anthropic_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        _anthropic_client = anthropic.Anthropic(
+            api_key=settings.ANTHROPIC_API_KEY,
+            timeout=_LLM_TIMEOUT_S,
+        )
     return _anthropic_client
 
 def _gemini() -> openai.OpenAI:
     global _gemini_client
     if _gemini_client is None:
-        _gemini_client = openai.OpenAI(
-            api_key=settings.GOOGLE_API_KEY,
+        _gemini_client = _make_openai_client(
+            settings.GOOGLE_API_KEY,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
     return _gemini_client
@@ -40,8 +60,8 @@ def _gemini() -> openai.OpenAI:
 def _deepseek() -> openai.OpenAI:
     global _deepseek_client
     if _deepseek_client is None:
-        _deepseek_client = openai.OpenAI(
-            api_key=settings.DEEPSEEK_API_KEY,
+        _deepseek_client = _make_openai_client(
+            settings.DEEPSEEK_API_KEY,
             base_url="https://api.deepseek.com/v1",
         )
     return _deepseek_client
@@ -49,8 +69,8 @@ def _deepseek() -> openai.OpenAI:
 def _groq() -> openai.OpenAI:
     global _groq_client
     if _groq_client is None:
-        _groq_client = openai.OpenAI(
-            api_key=settings.GROQ_API_KEY,
+        _groq_client = _make_openai_client(
+            settings.GROQ_API_KEY,
             base_url="https://api.groq.com/openai/v1",
         )
     return _groq_client
@@ -117,11 +137,6 @@ def call_llm(
 
     elapsed_ms = int((time.time() - start) * 1000)
     return text, elapsed_ms
-
-
-# Per-call hard timeout. SDK default is 600s (10 min!) — far too long for a
-# voice study where participants are watching a "thinking…" indicator.
-_LLM_TIMEOUT_S = 30
 
 
 def _call_openai_compat(client, model, history, system_prompt, max_tokens):

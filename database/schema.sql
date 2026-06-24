@@ -265,6 +265,11 @@ ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS ai_name          TEXT;
 ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS topic_index      INT;
 ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS ai_name          TEXT;
 
+-- Store BOTH the raw Whisper output AND the (possibly edited) text submitted to the LLM.
+-- whisper_transcript      = final submitted text (what AI saw)
+-- whisper_transcript_raw  = original Whisper output, never modified
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS whisper_transcript_raw TEXT;
+
 -- ── Migration: Latin-square topic order (run once in Supabase SQL Editor) ────
 -- Each participant now goes through ALL 3 topics in a counterbalanced order.
 -- assigned_topic_order ∈ {'ABC','BCA','CAB'}.

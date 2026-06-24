@@ -366,7 +366,7 @@ def export_voice_turns(request: Request):
         "hsps_score", "ai_hsps_score",
         # Turn
         "turn_number", "topic", "tts_voice_used",
-        "whisper_transcript", "transcript_word_count",
+        "whisper_transcript", "whisper_transcript_raw", "transcript_word_count",
         "llm_response_text", "response_time_ms", "audio_file_path",
         # Post-survey
         "general_empathy", "satisfaction", "trust", "conversation_quality",
@@ -403,6 +403,7 @@ def export_voice_turns(request: Request):
             vt.get("topic", ""),
             vt.get("tts_voice_used", ""),
             transcript,
+            vt.get("whisper_transcript_raw") or "",
             words,
             vt.get("llm_response_text") or "",
             vt.get("response_time_ms", ""),
