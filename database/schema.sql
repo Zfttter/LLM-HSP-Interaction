@@ -270,6 +270,17 @@ ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS ai_name          TEXT;
 -- whisper_transcript_raw  = original Whisper output, never modified
 ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS whisper_transcript_raw TEXT;
 
+-- Behavioral timing — raw timestamps from the participant's side. Durations are
+-- intentionally NOT pre-computed; analyses derive them as:
+--   hesitation_ms   = record_started_at - ai_audio_ended_at  (NULL on first turn of a topic)
+--   speaking_ms     = record_ended_at   - record_started_at
+--   editing_ms      = submitted_at      - preview_shown_at
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS ai_audio_ended_at TIMESTAMPTZ;
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS record_started_at TIMESTAMPTZ;
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS record_ended_at   TIMESTAMPTZ;
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS preview_shown_at  TIMESTAMPTZ;
+ALTER TABLE voice_turns      ADD COLUMN IF NOT EXISTS submitted_at      TIMESTAMPTZ;
+
 -- ── Migration: Latin-square topic order (run once in Supabase SQL Editor) ────
 -- Each participant now goes through ALL 3 topics in a counterbalanced order.
 -- assigned_topic_order ∈ {'ABC','BCA','CAB'}.

@@ -140,18 +140,34 @@ def chat(request: Request):
         request.session["turn_number"]      = 0
         request.session["topic_session_idx"] = expected_topic_idx
 
+    # Detect mid-conversation reload: if voice_turns rows already exist for the CURRENT
+    # topic, the participant is returning after navigating away. Skip the countdown
+    # gate and re-hydrate the chat from DB instead of starting over.
+    has_existing_chat = False
+    try:
+        vt_res = (
+            db_.db().table("voice_turns").select("id")
+            .eq("participant_id", participant["id"])
+            .eq("topic_index", expected_topic_idx)
+            .limit(1).execute()
+        )
+        has_existing_chat = bool(vt_res.data)
+    except Exception as exc:
+        print(f"[chat route] existing-turn lookup failed: {exc}")
+
     return templates.TemplateResponse(
         request,
         "chat.html",
         {
-            "topic_order":      topic_order,
-            "topic_key":        current_key,
-            "topic_name":       TOPIC_DISPLAY.get(current_key, current_key),
-            "topic_prompt":     TOPIC_PROMPTS.get(current_key, ""),
-            "topic_index":      topics_completed + 1,   # 1-based for display
-            "num_topics":       NUM_TOPICS,
-            "per_topic_turns":  PER_TOPIC_TURNS,
-            "ai_name":          current_ai,
+            "topic_order":       topic_order,
+            "topic_key":         current_key,
+            "topic_name":        TOPIC_DISPLAY.get(current_key, current_key),
+            "topic_prompt":      TOPIC_PROMPTS.get(current_key, ""),
+            "topic_index":       topics_completed + 1,
+            "num_topics":        NUM_TOPICS,
+            "per_topic_turns":   PER_TOPIC_TURNS,
+            "ai_name":           current_ai,
+            "has_existing_chat": has_existing_chat,
         },
     )
 

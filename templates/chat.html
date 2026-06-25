@@ -75,10 +75,12 @@
     <!-- Countdown gate — covers chat until participant is ready -->
     <div id="countdownGate" class="countdown-gate">
       <div class="countdown-content">
-        <p class="countdown-instruction">Before we begin…</p>
-        <p class="countdown-sub">
-          Please read the topic prompt on the left carefully before starting the conversation.<br><br>
-          You may also use the <strong>private notepad</strong> (bottom-left) to jot down keywords or organise your thoughts before speaking.<span id="countdownNum" class="countdown-num">20</span>
+        <p class="countdown-instruction">🎧 Before we begin…</p>
+        <p class="countdown-sub" style="text-align:left;">
+          • Put on <strong>headphones</strong><br>
+          • Find a <strong>quiet space</strong><br>
+          • Read the topic on the left and use the <strong>private notepad</strong> (bottom-left) to jot down thoughts
+          <span id="countdownNum" class="countdown-num">20</span>
         </p>
         <button id="readyBtn" class="sage-ready-btn" style="display:none;" onclick="onReady()">
           I'm Ready
@@ -163,10 +165,11 @@
 
 {% block scripts %}
 <script>
-  const PER_TOPIC_TURNS = {{ per_topic_turns }};
-  const NUM_TOPICS      = {{ num_topics }};
-  const TOPIC_INDEX     = {{ topic_index }};
-  const AI_NAME         = {{ ai_name | tojson }};
+  const PER_TOPIC_TURNS   = {{ per_topic_turns }};
+  const NUM_TOPICS        = {{ num_topics }};
+  const TOPIC_INDEX       = {{ topic_index }};
+  const AI_NAME           = {{ ai_name | tojson }};
+  const HAS_EXISTING_CHAT = {{ has_existing_chat | tojson }};
 </script>
 <script src="/static/js/chat.js"></script>
 {% endblock %}

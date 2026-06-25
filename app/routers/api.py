@@ -18,20 +18,22 @@ from app.config import (
     AI_NAMES, ai_name_for_topic, current_topic_for_participant, opening_message,
 )
 
+import hashlib
 import pathlib
 
 _history_cache: dict = {}
 _pending_cache: dict = {}
 
 # Persistent disk cache for greeting TTS audio.
-# 3 AI names × 3 voices × 2 (first-topic/repeat) = 18 max files, ~30KB each.
-# Survives uvicorn restarts so devs don't wait every time.
+# Cache key includes a hash of the text so any prompt change invalidates the cache.
 _TTS_CACHE_DIR = pathlib.Path(".tts_cache")
 _TTS_CACHE_DIR.mkdir(exist_ok=True)
 
 
 def _get_greeting_tts(ai_name: str, voice: str, is_first_topic: bool, text: str) -> str:
-    key = f"{ai_name}_{voice}_{'first' if is_first_topic else 'repeat'}.b64"
+    # 8-char hash of the text — if the opening message changes, cache miss & regenerate.
+    text_hash = hashlib.sha1(text.encode("utf-8")).hexdigest()[:8]
+    key = f"{ai_name}_{voice}_{'first' if is_first_topic else 'repeat'}_{text_hash}.b64"
     path = _TTS_CACHE_DIR / key
     if path.exists():
         return path.read_text()
@@ -311,23 +313,67 @@ def get_greeting(request: Request):
     opening = opening_message(current_ai, current_topic, is_first_topic=(topics_completed == 0))
 
     history = _history_cache.setdefault(session_id, [])
-    if not history:
-        history.append({"role": "assistant", "content": opening})
+
+    # ── Resume mid-conversation if voice_turns already exist for this topic ─────
+    # (happens when participant navigates back / refreshes / closes browser).
+    existing_turns_payload: list[dict] = []
+    existing = []
+    try:
+        existing = (
+            db_.db().table("voice_turns")
+            .select("turn_number, whisper_transcript, llm_response_text")
+            .eq("participant_id", participant_id)
+            .eq("topic_index", topics_completed + 1)
+            .order("turn_number").execute().data or []
+        )
+    except Exception as exc:
+        print(f"[greeting] existing-turn lookup failed: {exc}")
+
+    if existing:
+        # Re-hydrate LLM history (if in-memory cache was lost) AND build the payload
+        # the frontend uses to repopulate the chat window.
+        if not history:
+            history.append({"role": "assistant", "content": opening})
+            for vt in existing:
+                if vt.get("whisper_transcript"):
+                    history.append({"role": "user", "content": vt["whisper_transcript"]})
+                if vt.get("llm_response_text"):
+                    history.append({"role": "assistant", "content": vt["llm_response_text"]})
+        for vt in existing:
+            if vt.get("whisper_transcript"):
+                existing_turns_payload.append({
+                    "role": "user", "text": vt["whisper_transcript"], "turn": vt["turn_number"],
+                })
+            if vt.get("llm_response_text"):
+                existing_turns_payload.append({
+                    "role": "ai", "text": vt["llm_response_text"], "turn": vt["turn_number"],
+                })
+        # Restore turn counter so /transcribe & /turn continue from the right number
+        last_turn = existing[-1]["turn_number"]
+        request.session["turn_number"] = last_turn
+    else:
+        # Fresh start for this topic
+        if not history:
+            history.append({"role": "assistant", "content": opening})
 
     tts_voice = request.session.get("tts_voice", "nova")
 
     t3 = time.perf_counter()
-    tts_b64 = _get_greeting_tts(current_ai, tts_voice, topics_completed == 0, opening)
+    # Only generate (and play) TTS if this is a fresh conversation. On resume the
+    # frontend skips the greeting audio entirely.
+    tts_b64 = "" if existing else _get_greeting_tts(current_ai, tts_voice, topics_completed == 0, opening)
     t4 = time.perf_counter()
 
     print(f"[greeting] DB={t2-t1:.2f}s  TTS={t4-t3:.2f}s  total={t4-t0:.2f}s  "
-          f"ai={current_ai} voice={tts_voice} cached={(t4-t3)<0.5}")
+          f"ai={current_ai} voice={tts_voice} resume={bool(existing)} cached={(t4-t3)<0.5}")
     return JSONResponse({
         "ok": True,
-        "opening_text": opening,
-        "tts_b64": tts_b64,
-        "ai_name": current_ai,
-        "topic_index": topics_completed + 1,
+        "opening_text":        opening,
+        "tts_b64":             tts_b64,
+        "ai_name":             current_ai,
+        "topic_index":         topics_completed + 1,
+        "existing_turns":      existing_turns_payload,
+        "current_turn_number": existing[-1]["turn_number"] if existing else 0,
     })
 
 
@@ -378,6 +424,16 @@ async def process_turn(request: Request):
     edited_transcript = str(form.get("transcript", "")).strip()
     submitted         = edited_transcript or raw_whisper
 
+    # Behavioral timestamps from the client (ISO 8601 strings; any may be missing).
+    # Stored raw — durations are derived at analysis time.
+    timings = {
+        "ai_audio_ended_at": form.get("ai_audio_ended_at") or None,
+        "record_started_at": form.get("record_started_at") or None,
+        "record_ended_at":   form.get("record_ended_at")   or None,
+        "preview_shown_at":  form.get("preview_shown_at")  or None,
+        "submitted_at":      form.get("submitted_at")      or None,
+    }
+
     audio_url   = pending.get("audio_url", "")
     turn_number = pending.get("turn_number", request.session.get("turn_number", 0) + 1)
 
@@ -422,6 +478,12 @@ async def process_turn(request: Request):
         "topic_index":            topics_completed + 1,
         "ai_name":                current_ai,
         "response_time_ms":       response_time_ms,
+        # Raw behavioral timestamps (analysis computes hesitation / speaking / editing)
+        "ai_audio_ended_at":      timings["ai_audio_ended_at"],
+        "record_started_at":      timings["record_started_at"],
+        "record_ended_at":        timings["record_ended_at"],
+        "preview_shown_at":       timings["preview_shown_at"],
+        "submitted_at":           timings["submitted_at"],
     })
 
     if is_final:

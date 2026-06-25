@@ -368,6 +368,9 @@ def export_voice_turns(request: Request):
         "turn_number", "topic", "tts_voice_used",
         "whisper_transcript", "whisper_transcript_raw", "transcript_word_count",
         "llm_response_text", "response_time_ms", "audio_file_path",
+        # Behavioral timestamps (analysis derives hesitation/speaking/editing durations)
+        "ai_audio_ended_at", "record_started_at", "record_ended_at",
+        "preview_shown_at", "submitted_at",
         # Post-survey
         "general_empathy", "satisfaction", "trust", "conversation_quality",
         "affective_empathy_1", "affective_empathy_2", "cognitive_empathy",
@@ -408,6 +411,11 @@ def export_voice_turns(request: Request):
             vt.get("llm_response_text") or "",
             vt.get("response_time_ms", ""),
             vt.get("audio_file_url") or "",
+            vt.get("ai_audio_ended_at") or "",
+            vt.get("record_started_at") or "",
+            vt.get("record_ended_at") or "",
+            vt.get("preview_shown_at") or "",
+            vt.get("submitted_at") or "",
             sr.get("general_empathy", ""),
             sr.get("satisfaction", ""),
             sr.get("trust", ""),

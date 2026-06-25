@@ -10,13 +10,67 @@ let recorder        = null;
 let audioChunks     = [];
 let currentAudio    = null;
 let currentTurnNum  = 0;   // updated after each server response
+let chatDone        = false; // true once the topic's chat is complete (suppresses leave-warnings)
+
+// Behavioral timing — raw ISO timestamps. Reset per turn cycle; sent with /api/turn.
+// `ai_audio_ended_at` carries over from the previous AI response's playback end
+// (set in playAudio.onended). The other four are set during the current user turn.
+let turnTimings = {
+  ai_audio_ended_at: null,
+  record_started_at: null,
+  record_ended_at:   null,
+  preview_shown_at:  null,
+  submitted_at:      null,
+};
+
+function nowISO() { return new Date().toISOString(); }
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   requestMicPermission().then(() => {
-    document.getElementById("countdownGate").style.display = "flex";
-    startCountdown();
+    if (typeof HAS_EXISTING_CHAT !== "undefined" && HAS_EXISTING_CHAT) {
+      // Returning to a chat already in progress — skip countdown, rehydrate from DB.
+      document.getElementById("countdownGate").style.display = "none";
+      document.getElementById("voiceInputArea").style.display = "";
+      resumeChat();
+    } else {
+      document.getElementById("countdownGate").style.display = "flex";
+      startCountdown();
+    }
   });
 });
+
+// Warn the user before they accidentally navigate away mid-conversation.
+// `beforeunload` catches refresh / tab-close.
+window.addEventListener("beforeunload", (e) => {
+  if (chatDone) return;   // conversation is done — let them navigate freely
+  const inConversation = ["IDLE", "RECORDING", "TRANSCRIBING", "PREVIEW", "PROCESSING", "PLAYING"].includes(state);
+  if (inConversation && currentTurnNum > 0) {
+    e.preventDefault();
+    e.returnValue = "You're in the middle of a conversation — leave?";
+    return e.returnValue;
+  }
+});
+
+// `beforeunload` does NOT fire for browser back / forward / trackpad swipe.
+// Push a duplicate history entry on load, then intercept `popstate` to confirm.
+history.pushState({stayPut: true}, "", location.href);
+window.addEventListener("popstate", () => {
+  if (chatDone) { history.back(); return; }   // conversation done — let them navigate
+  const inConversation = ["IDLE", "RECORDING", "TRANSCRIBING", "PREVIEW", "PROCESSING", "PLAYING"].includes(state);
+  if (inConversation && currentTurnNum > 0) {
+    if (confirm("You're in the middle of a conversation — leave? Your progress is saved, but please don't navigate away.")) {
+      history.back();   // user really wants to leave — let them
+    } else {
+      // Re-arm the trap by pushing state again
+      history.pushState({stayPut: true}, "", location.href);
+    }
+  } else {
+    history.back();
+  }
+});
+
+// Debug: confirm the resume flag the server sent
+console.log("[chat] HAS_EXISTING_CHAT =", typeof HAS_EXISTING_CHAT !== "undefined" ? HAS_EXISTING_CHAT : "undefined");
 
 async function requestMicPermission() {
   try {
@@ -51,6 +105,35 @@ function onReady() {
   loadGreeting();
 }
 
+async function resumeChat() {
+  setStatus("loading", "Resuming your conversation…");
+  try {
+    const res  = await fetch("/api/greeting");
+    const data = await res.json();
+    if (!data.ok) throw new Error("Session error");
+
+    // Show the original greeting text (silent — no audio replay on resume)
+    appendMessage("ai", data.opening_text);
+
+    // Replay every saved turn into the chat window
+    for (const msg of (data.existing_turns || [])) {
+      if (msg.role === "user") {
+        appendMessage("user", msg.text, labelForTurn(msg.turn));
+      } else {
+        appendMessage("ai", msg.text, null);
+      }
+    }
+
+    currentTurnNum = data.current_turn_number || 0;
+    updateProgress(currentTurnNum);
+
+    setState("IDLE");
+    showPTT();
+  } catch (e) {
+    setStatus("error", "Could not resume session. Please refresh.");
+  }
+}
+
 async function loadGreeting() {
   setStatus("loading", "Loading…");
   try {
@@ -76,6 +159,9 @@ async function toggleRecording() {
 
 async function startRecording() {
   if (state !== "IDLE") return;
+  // Stamp the moment the participant chose to start speaking — end anchor for
+  // hesitation, start anchor for speaking duration.
+  turnTimings.record_started_at = nowISO();
   setState("RECORDING");
 
   audioChunks = [];
@@ -91,6 +177,8 @@ async function startRecording() {
 
 function stopRecording() {
   if (state !== "RECORDING" || !recorder) return;
+  // Stamp the click — end of speaking duration.
+  turnTimings.record_ended_at = nowISO();
 
   recorder.onstop = async () => {
     const blob = new Blob(audioChunks, { type: recorder.mimeType });
@@ -149,6 +237,8 @@ function reRecord() {
 // ── Submit turn ───────────────────────────────────────────────────────────────
 async function submitTurn() {
   if (state !== "PREVIEW") return;
+  // Stamp the click — end of editing duration.
+  turnTimings.submitted_at = nowISO();
   setState("PROCESSING");
 
   const transcript = document.getElementById("transcriptText").value.trim();
@@ -163,9 +253,24 @@ async function submitTurn() {
   try {
     const fd = new FormData();
     fd.append("transcript", transcript);   // send the (possibly edited) text
+    // Send all 5 raw behavioral timestamps for this turn (any may be null,
+    // e.g. ai_audio_ended_at on the very first turn after a fresh page load).
+    if (turnTimings.ai_audio_ended_at) fd.append("ai_audio_ended_at", turnTimings.ai_audio_ended_at);
+    if (turnTimings.record_started_at) fd.append("record_started_at", turnTimings.record_started_at);
+    if (turnTimings.record_ended_at)   fd.append("record_ended_at",   turnTimings.record_ended_at);
+    if (turnTimings.preview_shown_at)  fd.append("preview_shown_at",  turnTimings.preview_shown_at);
+    if (turnTimings.submitted_at)      fd.append("submitted_at",      turnTimings.submitted_at);
+
     const res  = await fetch("/api/turn", { method: "POST", body: fd });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "Server error");
+
+    // Reset turn timings for the next cycle. `ai_audio_ended_at` will get
+    // re-stamped when the AI's response audio (about to play) finishes.
+    turnTimings = {
+      ai_audio_ended_at: null, record_started_at: null,
+      record_ended_at:   null, preview_shown_at:  null, submitted_at: null,
+    };
 
     removeTypingIndicator();
     appendMessage("ai", data.ai_text, null);
@@ -196,6 +301,10 @@ function playAudio(b64mp3, onEnded) {
     currentAudio = new Audio(url);
 
     currentAudio.onended = () => {
+      // Stamp the exact moment AI audio finished — this is the start anchor for
+      // the participant's hesitation on their NEXT turn.
+      turnTimings.ai_audio_ended_at = nowISO();
+
       URL.revokeObjectURL(url);
       currentAudio = null;
       if (onEnded) {
@@ -233,6 +342,8 @@ function showPTT() {
 }
 
 function showPreview(transcript) {
+  // Stamp the moment the editable preview becomes visible — start of editing duration.
+  turnTimings.preview_shown_at = nowISO();
   document.getElementById("transcriptText").value = transcript;
   document.getElementById("pttState").style.display = "none";
   document.getElementById("previewState").style.display = "";
@@ -365,6 +476,7 @@ function labelForTurn(turnNumber) {
 function showCompletionModal() {
   hideInputArea();
   setStatus("idle", "Conversation complete");
+  chatDone = true;   // suppress leave-warnings — navigating to /post-survey is expected
   const modal = document.getElementById("redirectModal");
   if (modal) modal.style.display = "flex";
 }
