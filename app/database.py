@@ -177,9 +177,17 @@ def finalize_participant(participant_id: str) -> str:
 _BUCKET = "voice-recordings"
 
 
-def upload_audio(participant_id: str, session_id: str, turn_number: int, audio_bytes: bytes) -> str:
-    """Upload WebM audio to Supabase Storage (private bucket). Returns file path or empty string."""
-    path = f"{participant_id}/{session_id}_{turn_number}_audio.webm"
+def upload_audio(participant_id: str, session_id: str, turn_number: int,
+                 audio_bytes: bytes, topic: Optional[str] = None) -> str:
+    """Upload WebM audio to Supabase Storage (private bucket).
+    Path layout: {participant_id}/{topic}/{session_id}_{turn_number}_audio.webm
+    Falls back to {participant_id}/ for legacy callers that don't pass a topic.
+    Returns the file path or empty string on failure.
+    """
+    if topic:
+        path = f"{participant_id}/{topic}/{session_id}_{turn_number}_audio.webm"
+    else:
+        path = f"{participant_id}/{session_id}_{turn_number}_audio.webm"
     try:
         db().storage.from_(_BUCKET).upload(
             path=path,

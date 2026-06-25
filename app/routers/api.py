@@ -391,7 +391,17 @@ async def transcribe_turn(request: Request, audio: UploadFile = File(...)):
     turn_number  = request.session.get("turn_number", 0) + 1
     audio_bytes  = await audio.read()
 
-    audio_url  = db_.upload_audio(participant_id, session_id, turn_number, audio_bytes)
+    # Determine the current topic so we can shard the bucket by topic.
+    # Prefer values cached in session (set by /chat route); fall back to DB only if missing.
+    topics_completed = request.session.get("cached_topics_completed")
+    topic_order      = request.session.get("cached_topic_order")
+    if topics_completed is None or topic_order is None:
+        participant = db_.get_participant_by_id(participant_id)
+        topics_completed = (participant or {}).get("topics_completed", 0) or 0
+        topic_order      = (participant or {}).get("assigned_topic_order", "ABC")
+    current_topic = current_topic_for_participant(topic_order, topics_completed)
+
+    audio_url  = db_.upload_audio(participant_id, session_id, turn_number, audio_bytes, topic=current_topic)
     transcript = transcribe_audio(audio_bytes)
 
     # Always queue — even if Whisper returned empty, let the user edit/type
