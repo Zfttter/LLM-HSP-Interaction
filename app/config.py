@@ -205,8 +205,9 @@ def current_topic_for_participant(topic_order: str, topics_completed: int) -> st
 
 def opening_message(ai_name: str, topic: str, is_first_topic: bool) -> str:
     """The greeting the AI speaks when /chat first loads for a topic.
-    Asks a brief warm-up question so the first user turn is a low-stakes self-intro
-    rather than the topic itself.
+    Topic 1: gentle self-intro question (name + something you enjoy).
+    Topic 2/3: a low-stakes readiness check — deliberately NOT asking how they feel,
+    which could steer the LLM toward wellbeing talk if the participant answers negatively.
     """
     if is_first_topic:
         return (
@@ -214,7 +215,7 @@ def opening_message(ai_name: str, topic: str, is_first_topic: bool) -> str:
             "Before we dive in, could you tell me your name and one thing you enjoy doing?"
         )
     return (
-        f"Hi, I'm {ai_name}. Before we begin — how are you feeling right now?"
+        f"Hi, I'm {ai_name}. Whenever you're ready to move on, just let me know."
     )
 
 
@@ -241,13 +242,20 @@ def build_system_prompt(ai_name: str, topic: str, turn_number: int) -> str:
     if phase == "intro":
         body = (
             f"\nCURRENT PHASE — Warm-up (turn {turn_number}):\n"
-            "You just asked the participant a brief self-intro question "
-            "(their name + something they enjoy, OR how they're feeling). "
-            "They have just answered it.\n"
-            "Respond in 2-3 sentences: (1) briefly acknowledge what they shared "
-            "(use their name if they gave one); (2) gently invite them to share about "
-            f"the topic on their screen: {desc}. "
-            "Do NOT ask a deep question yet — just open the door warmly.\n"
+            "You just greeted the participant. Depending on the topic this may have been "
+            "either (a) asking their name + one thing they enjoy (Topic 1 only), "
+            "or (b) simply asking whether they're ready to move on (Topics 2 and 3). "
+            "They have just answered.\n\n"
+            "Respond in 2–3 sentences:\n"
+            "• If they gave their name and/or an interest → briefly acknowledge it "
+            "(using their name), then gently invite them to share about the topic on their "
+            f"screen: {desc}. Open the door warmly; do NOT ask a deep question yet.\n"
+            "• If they said something like \"not ready\" / \"give me a moment\" / \"not yet\" → "
+            "kindly say something like \"No rush — just let me know when you're ready\" and STOP. "
+            "Do NOT press them, do NOT introduce the topic, do NOT ask how they feel.\n"
+            "• If they said they're ready → warmly invite them to share about the topic on their "
+            f"screen: {desc}. Do NOT ask a deep question yet — just open the door.\n"
+            "Never ask about their emotional state or wellbeing during this warm-up — stay light.\n"
         )
     elif phase == "closing":
         body = (

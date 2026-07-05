@@ -121,6 +121,9 @@
           </button>
         </div>
         <p class="sage-ptt-hint" id="pttHint">Click once to start · click again to stop</p>
+        <p class="sage-ptt-hint" style="margin-top:0.15rem; font-style:italic; color:#7a9a5a;">
+          Tip: use the scratchpad to gather your thoughts before recording — aim for 1&ndash;2 min.
+        </p>
       </div>
 
       <!-- Transcript preview state (hidden until recording done) -->
@@ -136,7 +139,10 @@
             </svg>
           </button>
         </div>
-        <div style="margin-top:0.55rem; text-align:right;">
+        <div style="margin-top:0.55rem; display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
+          <span style="font-size:0.75rem; color:#8a9a7a; font-style:italic; flex:1;">
+            Not happy with most of the transcript? Re-recording may be easier than editing.
+          </span>
           <button class="sage-rerecord-btn" onclick="reRecord()">↺ Re-record</button>
         </div>
       </div>
