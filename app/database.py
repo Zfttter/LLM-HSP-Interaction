@@ -177,17 +177,54 @@ def finalize_participant(participant_id: str) -> str:
 _BUCKET = "voice-recordings"
 
 
+def next_voice_attempt_number(session_id: str, turn_number: int) -> int:
+    """
+    Atomically reserve and return the next attempt_number (1, 2, 3, ...) for this
+    session_id + turn_number, via the next_voice_attempt_number() Postgres function.
+    Safe under concurrent calls — the row-level lock from INSERT ... ON CONFLICT
+    DO UPDATE serializes increments for the same key.
+    """
+    result = db().rpc("next_voice_attempt_number", {
+        "p_session_id": session_id,
+        "p_turn_number": turn_number,
+    }).execute()
+    return result.data
+
+
+def save_voice_turn_attempt(data: dict) -> None:
+    """Insert a row into voice_turn_attempts (one per recording attempt, kept even
+    if the participant re-records and this take is never submitted)."""
+    try:
+        db().table("voice_turn_attempts").insert(data).execute()
+    except Exception as exc:
+        print(f"[DB] voice_turn_attempts insert failed: {exc}")
+
+
+def get_voice_turn_attempts(session_id: str, turn_number: int) -> list[dict]:
+    """All recording attempts for a given turn, oldest first."""
+    result = (
+        db().table("voice_turn_attempts")
+        .select("*")
+        .eq("session_id", session_id)
+        .eq("turn_number", turn_number)
+        .order("attempt_number")
+        .execute()
+    )
+    return result.data or []
+
+
 def upload_audio(participant_id: str, session_id: str, turn_number: int,
-                 audio_bytes: bytes, topic: Optional[str] = None) -> str:
+                 attempt_number: int, audio_bytes: bytes, topic: Optional[str] = None) -> str:
     """Upload WebM audio to Supabase Storage (private bucket).
-    Path layout: {participant_id}/{topic}/{session_id}_{turn_number}_audio.webm
+    Path layout: {participant_id}/{topic}/{session_id}_{turn_number}_{attempt_number}_audio.webm
     Falls back to {participant_id}/ for legacy callers that don't pass a topic.
+    Different attempts get different paths, so re-recording never overwrites a prior take.
     Returns the file path or empty string on failure.
     """
     if topic:
-        path = f"{participant_id}/{topic}/{session_id}_{turn_number}_audio.webm"
+        path = f"{participant_id}/{topic}/{session_id}_{turn_number}_{attempt_number}_audio.webm"
     else:
-        path = f"{participant_id}/{session_id}_{turn_number}_audio.webm"
+        path = f"{participant_id}/{session_id}_{turn_number}_{attempt_number}_audio.webm"
     try:
         db().storage.from_(_BUCKET).upload(
             path=path,

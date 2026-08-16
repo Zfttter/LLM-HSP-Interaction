@@ -401,19 +401,40 @@ async def transcribe_turn(request: Request, audio: UploadFile = File(...)):
         topic_order      = (participant or {}).get("assigned_topic_order", "ABC")
     current_topic = current_topic_for_participant(topic_order, topics_completed)
 
-    audio_url  = db_.upload_audio(participant_id, session_id, turn_number, audio_bytes, topic=current_topic)
+    # Atomically reserve this take's attempt number — same turn re-recorded
+    # concurrently would still get distinct, ordered numbers.
+    attempt_number = db_.next_voice_attempt_number(session_id, turn_number)
+
+    audio_url  = db_.upload_audio(
+        participant_id, session_id, turn_number, attempt_number, audio_bytes, topic=current_topic,
+    )
     transcript = transcribe_audio(audio_bytes)
+
+    # Persist this attempt immediately, so the take survives even if the participant
+    # abandons it and records another (durable — not dependent on in-memory cache).
+    db_.save_voice_turn_attempt({
+        "participant_id":         participant_id,
+        "session_id":             session_id,
+        "turn_number":            turn_number,
+        "attempt_number":         attempt_number,
+        "whisper_transcript_raw": transcript,
+        "audio_file_url":         audio_url,
+    })
 
     # Always queue — even if Whisper returned empty, let the user edit/type
     # in the preview textarea before submitting.
     # `raw_whisper` is the original Whisper output, frozen. `transcript` is what we
     # pre-fill the preview box with — the user may edit it before submitting.
-    _pending_cache[session_id] = {
-        "raw_whisper": transcript,
-        "transcript":  transcript,
-        "audio_url":   audio_url,
-        "turn_number": turn_number,
-    }
+    # Appended, not overwritten — a re-record adds a new attempt instead of
+    # discarding the previous one's history.
+    attempts = _pending_cache.setdefault(session_id, [])
+    attempts.append({
+        "raw_whisper":    transcript,
+        "transcript":     transcript,
+        "audio_url":      audio_url,
+        "turn_number":    turn_number,
+        "attempt_number": attempt_number,
+    })
     return JSONResponse({"ok": True, "transcript": transcript})
 
 
@@ -424,7 +445,12 @@ async def process_turn(request: Request):
         return JSONResponse({"error": "No session"}, status_code=400)
 
     session_id = request.session.get("voice_session_id", "")
-    pending    = _pending_cache.pop(session_id, {})
+    attempts   = _pending_cache.pop(session_id, [])
+
+    # The participant may have re-recorded this turn multiple times; only the LAST
+    # attempt is what gets submitted. Earlier attempts stay in voice_turn_attempts
+    # (written at /transcribe time) for traceability.
+    pending = attempts[-1] if attempts else {}
 
     # The participant may have edited the Whisper output in the preview box.
     # We save BOTH: the raw Whisper text (for data integrity / cheat detection)
@@ -444,8 +470,11 @@ async def process_turn(request: Request):
         "submitted_at":      form.get("submitted_at")      or None,
     }
 
-    audio_url   = pending.get("audio_url", "")
-    turn_number = pending.get("turn_number", request.session.get("turn_number", 0) + 1)
+    audio_url      = pending.get("audio_url", "")
+    turn_number    = pending.get("turn_number", request.session.get("turn_number", 0) + 1)
+    # Attempt numbers are sequential from 1, so the submitted attempt's number
+    # equals the total number of takes recorded for this turn.
+    total_attempts = pending.get("attempt_number", 1)
 
     if not submitted:
         return JSONResponse({"error": "No pending transcript"}, status_code=400)
@@ -481,6 +510,7 @@ async def process_turn(request: Request):
         "whisper_transcript_raw": raw_whisper,   # original Whisper output (frozen)
         "llm_response_text":      ai_text,
         "audio_file_url":         audio_url,
+        "total_attempts":         total_attempts,  # takes recorded for this turn (1 = no re-record)
         "tts_voice_used":         tts_voice,
         "platform":               platform,
         "hsp_condition":          hsp_condition,

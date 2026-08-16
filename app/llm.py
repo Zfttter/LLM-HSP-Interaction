@@ -31,6 +31,7 @@ _anthropic_client: Optional[anthropic.Anthropic] = None
 _gemini_client: Optional[openai.OpenAI] = None
 _deepseek_client: Optional[openai.OpenAI] = None
 _groq_client: Optional[openai.OpenAI] = None
+_xai_client: Optional[openai.OpenAI] = None
 
 
 def _openai() -> openai.OpenAI:
@@ -74,6 +75,15 @@ def _groq() -> openai.OpenAI:
             base_url="https://api.groq.com/openai/v1",
         )
     return _groq_client
+
+def _xai() -> openai.OpenAI:
+    global _xai_client
+    if _xai_client is None:
+        _xai_client = _make_openai_client(
+            settings.XAI_API_KEY,
+            base_url="https://api.x.ai/v1",
+        )
+    return _xai_client
 
 
 _RETRYABLE = (
@@ -120,7 +130,7 @@ def call_llm(
     start = time.time()
 
     def _call():
-        if platform in ("gpt-4o", "gpt-4o-mini"):
+        if platform == "gpt-4o":
             return _call_openai_compat(_openai(), platform, conversation_history, actual_system, actual_max_tokens)
         elif platform == "claude-sonnet-4-6":
             return _call_anthropic(conversation_history, actual_system, actual_max_tokens)
@@ -130,6 +140,8 @@ def call_llm(
             return _call_openai_compat(_deepseek(), platform, conversation_history, actual_system, actual_max_tokens)
         elif platform == "llama-3.3-70b-versatile":
             return _call_openai_compat(_groq(), platform, conversation_history, actual_system, actual_max_tokens)
+        elif platform == "grok-4":
+            return _call_openai_compat(_xai(), platform, conversation_history, actual_system, actual_max_tokens)
         else:
             raise ValueError(f"Unknown platform: {platform}")
 

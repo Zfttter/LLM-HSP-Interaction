@@ -82,7 +82,7 @@ POST_SURVEY_LABELS = {1: "Strongly disagree", 7: "Strongly agree"}
 
 PLATFORMS = [
     "gpt-4o",
-    "gpt-4o-mini",
+    "grok-4",
     "claude-sonnet-4-6",
     "gemini-2.5-flash",
     "deepseek-chat",
@@ -91,7 +91,7 @@ PLATFORMS = [
 
 PLATFORM_DISPLAY = {
     "gpt-4o": "GPT-4o",
-    "gpt-4o-mini": "GPT-4o Mini",
+    "grok-4": "Grok 4",
     "claude-sonnet-4-6": "Claude Sonnet",
     "gemini-2.5-flash": "Gemini 2.5 Flash",
     "deepseek-chat": "DeepSeek Chat",
@@ -184,9 +184,22 @@ TOPIC_ORDERS = {
 }
 
 TOPIC_DESCRIPTIONS = {
-    "social_anxiety":       "a time when you felt socially anxious or uncomfortable around others",
-    "rumination":           "something from your past that you find yourself returning to more than once",
-    "anticipatory_anxiety": "something coming up in your life that you've been feeling anxious or uncertain about",
+    "social_anxiety": (
+        "a time when you felt socially anxious or uncomfortable around others — such as being "
+        "criticized or embarrassed in front of others, struggling to express frustration or "
+        "displeasure, or feeling exposed while speaking in front of an authority figure or a group"
+    ),
+    "rumination": (
+        "something from your past that you find yourself returning to more than once — such as "
+        "something you said that you later regretted, a decision you've second-guessed, an "
+        "unresolved conflict, or the end of a friendship or relationship you've kept replaying "
+        "in your mind"
+    ),
+    "anticipatory_anxiety": (
+        "something coming up in your life that you've been feeling anxious or uncertain about — "
+        "such as an upcoming interview, audition, or performance, waiting for an important result, "
+        "a difficult conversation you know you need to have, or uncertainty about a major decision"
+    ),
 }
 
 
@@ -273,13 +286,17 @@ def build_system_prompt(ai_name: str, topic: str, turn_number: int) -> str:
         body = (
             f"\nCURRENT PHASE — Story sharing (turn {turn_number}):\n"
             f"The participant is sharing about: {desc}.\n"
-            "Listen with empathy, reflect back what they've shared, and ask exactly one "
-            "thoughtful follow-up question to help them continue opening up on this topic.\n"
+            "Listen with empathy and respond naturally to what they just shared. "
+            "You may ask one thoughtful follow-up question if it feels right, or simply "
+            "reflect warmly on what they shared without asking anything — let the "
+            "conversation guide you.\n"
         )
 
     rules = (
         "\nVOICE CONVERSATION RULES (strictly follow):\n"
-        "- Keep every response to 2–4 sentences maximum.\n"
+        "- Keep your response to a natural, conversational length. Aim for 2–5 sentences, "
+        "but follow the flow of the conversation — say more when the moment calls for it, "
+        "less when brevity feels right.\n"
         "- Do NOT use bullet points, numbered lists, headers, or any markdown formatting.\n"
         "- Speak naturally and warmly, exactly as you would in a real face-to-face conversation.\n"
         "- Never mention that you are an AI or part of a study unless the participant directly asks.\n"
@@ -300,6 +317,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     DEEPSEEK_API_KEY: str = ""
     GROQ_API_KEY: str = ""
+    XAI_API_KEY: str = ""
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
 

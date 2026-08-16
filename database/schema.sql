@@ -314,6 +314,68 @@ INSERT INTO condition_counts (condition_id, platform, topic) VALUES
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS data_sharing_consent        BOOLEAN;
 
 
+-- ── Migration: re-record history (run once in Supabase SQL Editor) ───────────
+-- Keep every recording attempt for a turn instead of overwriting on re-record.
+
+ALTER TABLE voice_turns ADD COLUMN IF NOT EXISTS total_attempts INT;
+
+-- Per (session_id, turn_number) atomic attempt counter.
+CREATE TABLE IF NOT EXISTS voice_turn_attempt_counters (
+    session_id    TEXT NOT NULL,
+    turn_number   INT  NOT NULL,
+    attempt_count INT  NOT NULL DEFAULT 0,
+    PRIMARY KEY (session_id, turn_number)
+);
+
+-- Atomically reserves and returns the next attempt_number for this session_id +
+-- turn_number. INSERT ... ON CONFLICT DO UPDATE takes a row-level lock, so
+-- concurrent calls for the same key are serialized without a separate advisory lock.
+CREATE OR REPLACE FUNCTION next_voice_attempt_number(p_session_id TEXT, p_turn_number INT)
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_count INT;
+BEGIN
+    INSERT INTO voice_turn_attempt_counters (session_id, turn_number, attempt_count)
+    VALUES (p_session_id, p_turn_number, 1)
+    ON CONFLICT (session_id, turn_number)
+    DO UPDATE SET attempt_count = voice_turn_attempt_counters.attempt_count + 1
+    RETURNING attempt_count INTO v_count;
+
+    RETURN v_count;
+END;
+$$;
+
+-- Every recording attempt for a turn (submitted or abandoned re-records).
+-- The attempt that was actually submitted is also reflected in voice_turns
+-- (whisper_transcript / whisper_transcript_raw / audio_file_url); this table
+-- additionally keeps the discarded takes for traceability.
+CREATE TABLE IF NOT EXISTS voice_turn_attempts (
+    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    participant_id         UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+    session_id             TEXT NOT NULL,
+    turn_number            INT NOT NULL,
+    attempt_number         INT NOT NULL,
+    whisper_transcript_raw TEXT,
+    audio_file_url         TEXT,
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_turn_attempts_lookup
+    ON voice_turn_attempts(session_id, turn_number);
+
+
+-- ── Migration: replace gpt-4o-mini condition with Grok (run once) ────────────
+-- Drops the participants that were test-assigned to gpt-4o-mini, then repoints
+-- their 3 condition_counts slots (one per topic order) at grok-4.
+DELETE FROM participants WHERE assigned_platform = 'gpt-4o-mini';
+
+UPDATE condition_counts
+SET platform = 'grok-4', current_count = 0
+WHERE platform = 'gpt-4o-mini';
+
+
 -- ── Row-level security (optional, recommended for production) ────────────────
 -- Enable RLS and restrict direct table access so only the service role
 -- (used by the backend) can read/write data.
