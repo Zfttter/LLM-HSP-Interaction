@@ -1401,6 +1401,10 @@ select.form-control, input.form-control,
   --text-light:  #888880;
   --bg:          #FAFAF8;
   --card-bg:     #FDFDFB;
+  --sp-1: 0.5rem;   /* 8px */
+  --sp-2: 1rem;     /* 16px */
+  --sp-3: 1.5rem;   /* 24px */
+  --sp-4: 2rem;     /* 32px */
   --border:      #E0E8D8;
   --radius:      8px;
   --shadow:      0 2px 12px rgba(0,0,0,0.06);
@@ -1465,11 +1469,14 @@ p  { margin-bottom: 0.75rem; }
 }
 
 .chat-sidebar {
-  width: 310px;
+  width: 320px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--sp-2);
+  background: #f2f7ea;
+  border-radius: 16px;
+  padding: var(--sp-2);
 }
 
 /* ── Chat main ─────────────────────────────────────────────────────────────── */
@@ -1558,7 +1565,11 @@ p  { margin-bottom: 0.75rem; }
   color: #7a5a00;
   line-height: 1.5;
 }
-.ai-warning-sidebar { margin-top: auto; }
+.ai-warning-sidebar {
+  margin-top: auto; flex-shrink: 0;
+  padding: 0.45rem 0.7rem; font-size: 0.68rem; line-height: 1.4;
+  background: #fdf6e3; border-color: #ecd98a; color: #8a6a10;
+}
 
 /* ── Instructions page ──────────────────────────────────────────────────────── */
 .page-center {
@@ -1638,16 +1649,25 @@ p  { margin-bottom: 0.75rem; }
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
-.sage-sidebar { gap: 0.85rem; }
+.sage-sidebar { gap: var(--sp-2); }
 
+/* Identity + progress merged into one low-key header row — progress is a
+   secondary indicator, not a competing card. */
 .sage-identity-card {
-  background: #fff; border: 1px solid #C0DD97; border-radius: 12px;
-  padding: 0.85rem 1rem; display: flex; align-items: center; gap: 0.75rem;
-  box-shadow: 0 1px 6px rgba(59,109,17,0.07);
+  background: #fbfdf7; border: none; border-radius: 12px;
+  padding: var(--sp-2); display: flex; align-items: center; gap: var(--sp-1);
+  box-shadow: 0 1px 4px rgba(59,109,17,0.05);
 }
-.sage-avatar   { font-size: 1.7rem; line-height: 1; }
-.sage-name     { font-size: 1rem; font-weight: 500; color: #2a5000; }
-.sage-subtitle { font-size: 0.76rem; color: #6aaa30; font-weight: 300; }
+.sage-avatar   { font-size: 1.6rem; line-height: 1; }
+.sage-name     { font-size: 1.05rem; font-weight: 600; color: #2a5000; }
+.sage-subtitle { font-size: 0.74rem; color: #8aab6a; font-weight: 300; }
+
+.sage-progress-mini { margin-left: auto; text-align: right; flex-shrink: 0; }
+.sage-progress-mini-label {
+  font-size: 0.68rem; color: #a8c088; font-weight: 400; display: block; margin-bottom: 0.3rem;
+}
+.sage-progress-mini .sage-dots-row { justify-content: flex-end; gap: 5px; }
+.sage-progress-mini .sage-dot { width: 6px; height: 6px; }
 
 /* Status bar — centered top of chat-main */
 .chat-status-bar {
@@ -1676,7 +1696,7 @@ p  { margin-bottom: 0.75rem; }
   overflow: hidden;
 }
 
-/* Static (non-collapsible) variant */
+/* Static (non-collapsible) variant — distinguished by shadow + tint, not a border */
 .sage-topic-box--static {
   flex: 2;
   display: flex;
@@ -1684,22 +1704,44 @@ p  { margin-bottom: 0.75rem; }
   min-height: 0;
   overflow: hidden;
   background: #fff;
-  box-shadow: none;
-  border: 1px solid #C0DD97;
+  box-shadow: 0 1px 5px rgba(59,109,17,0.06);
+  border: none;
   padding: 0;       /* overrides .topic-prompt-box's 1.25rem */
   margin: 0;        /* overrides .topic-prompt-box's 1rem 0 */
 }
 
 .sage-topic-header {
-  padding: 0.8rem 0.9rem; font-size: 0.95rem; font-weight: 500;
-  color: #3B6D11; background: #f4f9ee; border-bottom: 1px solid #C0DD97;
+  padding: var(--sp-1) var(--sp-2); font-size: 0.85rem; font-weight: 600;
+  color: #3B6D11; background: #f4f9ee;
   flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
 }
 .sage-topic-body {
-  padding: 0.85rem 0.9rem; font-size: 0.78rem; color: #444; line-height: 1.6; font-weight: 300;
+  padding: var(--sp-2); font-size: 0.78rem; color: #555; line-height: 1.6; font-weight: 300;
   overflow-y: auto; flex: 1; min-height: 0;
   background: #fff;
 }
+
+.sage-collapse-btn {
+  flex-shrink: 0; background: none; border: 1px solid #C0DD97; border-radius: 999px;
+  padding: 0.15rem 0.65rem; font-size: 0.7rem; color: #3B6D11; cursor: pointer;
+  font-family: var(--font); transition: background 0.15s;
+}
+.sage-collapse-btn:hover { background: #e4f0d4; }
+
+.sage-topic-box--static.collapsed { flex: 0 0 auto; }
+.sage-topic-box--static.collapsed .sage-topic-body { display: none; }
+.sage-topic-box--static.collapsed .sage-topic-header { border-bottom: none; }
+
+/* ── Sidebar collapse toggle (lives inside .chat-topic-indicator, same bar) ── */
+.sage-sidebar-toggle {
+  flex-shrink: 0; background: none; border: 1px solid #C0DD97; border-radius: 999px;
+  padding: 0.15rem 0.65rem; font-size: 0.7rem; color: #3B6D11; cursor: pointer;
+  font-family: var(--font); transition: background 0.15s;
+}
+.sage-sidebar-toggle:hover { background: #e4f0d4; }
+
+.chat-layout.sidebar-collapsed .chat-sidebar { display: none; }
 
 .sage-topic-body strong {
   display: block;
@@ -1717,20 +1759,22 @@ p  { margin-bottom: 0.75rem; }
   text-align: justify;
   hyphens: auto;
 }
-/* Private scratchpad */
+/* Private scratchpad — the participant's primary writing surface: the most
+   visually prominent box in the sidebar (accent border + lift + warm paper tint). */
 .sage-scratchpad-box {
-  background: #fff; border: 1px solid #C0DD97; border-radius: 12px;
+  background: #fffef8; border: 1.5px solid #a8d878; border-radius: 12px;
   overflow: hidden; flex: 1; display: flex; flex-direction: column;
-  box-shadow: 0 1px 6px rgba(59,109,17,0.07); min-height: 120px; max-height: 180px;
+  box-shadow: 0 3px 14px rgba(59,109,17,0.12);
 }
 .sage-scratchpad-label {
-  padding: 0.6rem 1rem; font-size: 0.78rem; font-weight: 500; color: #5a8a2a;
-  background: #f4f9ee; border-bottom: 1px solid #C0DD97;
+  padding: var(--sp-1) var(--sp-2); font-size: 0.8rem; font-weight: 600; color: #3B6D11;
+  background: #eef7de;
 }
 .sage-scratchpad-textarea {
   flex: 1; border: none; outline: none; background: transparent;
-  padding: 0.75rem 1rem; font-size: 0.82rem; color: var(--text);
-  line-height: 1.65; font-family: var(--font); resize: none;
+  padding: var(--sp-2); font-size: 0.95rem; color: var(--text);
+  line-height: 1.7; font-family: var(--font); resize: none;
+  min-height: 96px; max-height: 300px; overflow-y: auto;
 }
 .sage-scratchpad-textarea::placeholder { color: #b8c8a0; font-style: italic; }
 
@@ -1782,34 +1826,49 @@ p  { margin-bottom: 0.75rem; }
 #pttState { position: relative; padding-bottom: 1.2rem; }
 
 .sage-ptt-row {
-  display: flex; justify-content: center; padding: 0.25rem 0 0.15rem;
+  display: flex; justify-content: center; align-items: center;
+  padding: var(--sp-2) 0;
 }
 .sage-ptt-btn {
-  height: 52px; padding: 0 1.5rem; border-radius: 26px; border: none;
+  height: 58px; padding: 0 var(--sp-3); border-radius: 29px; border: none;
   background: #78b030; color: #fff; cursor: pointer;
-  display: flex; align-items: center; gap: 0.55rem;
-  box-shadow: 0 3px 12px rgba(59,109,17,0.3);
+  display: flex; align-items: center; gap: 0.6rem;
+  box-shadow: 0 3px 14px rgba(59,109,17,0.32);
   transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
   -webkit-user-select: none; user-select: none;
+  animation: ptBreathe 2.6s ease-in-out infinite;
 }
-.sage-ptt-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
-.sage-ptt-label { font-size: 0.93rem; font-weight: 500; white-space: nowrap; }
-.sage-ptt-btn:hover:not(:disabled)  { background: #3B6D11; transform: scale(1.04); }
+.sage-ptt-btn svg { width: 24px; height: 24px; flex-shrink: 0; }
+.sage-ptt-label { font-size: 0.97rem; font-weight: 600; white-space: nowrap; }
+.sage-ptt-btn:hover:not(:disabled)  { background: #3B6D11; transform: scale(1.05); }
+@keyframes ptBreathe {
+  0%, 100% { box-shadow: 0 3px 14px rgba(59,109,17,0.32); transform: scale(1); }
+  50%       { box-shadow: 0 4px 22px rgba(59,109,17,0.5);  transform: scale(1.015); }
+}
 .sage-ptt-btn.recording {
   background: #c0392b; box-shadow: 0 3px 16px rgba(192,57,43,0.45);
   animation: recPulse 1.2s ease-in-out infinite;
 }
 @keyframes recPulse {
-  0%, 100% { box-shadow: 0 3px 16px rgba(192,57,43,0.45); }
-  50%       { box-shadow: 0 3px 24px rgba(192,57,43,0.75); }
+  0%, 100% { box-shadow: 0 3px 16px rgba(192,57,43,0.45); transform: scale(1); }
+  50%       { box-shadow: 0 4px 26px rgba(192,57,43,0.75); transform: scale(1.03); }
 }
-.sage-ptt-btn:disabled { background: #C0DD97; cursor: not-allowed; transform: none; box-shadow: none; }
+.sage-ptt-btn:disabled { background: #C0DD97; cursor: not-allowed; transform: none; box-shadow: none; animation: none; }
 
 .sage-ptt-hint {
   position: absolute; right: 0; bottom: 0;
   font-size: 0.73rem; color: #a8c880;
   font-weight: 300; margin: 0; text-align: right;
 }
+
+.sage-ptt-tip {
+  font-size: 0.85rem; color: #3B6D11; font-style: italic;
+  font-weight: 400; text-align: left; margin: 0.6rem 0 0;
+  display: flex; align-items: flex-start; gap: 0.4rem;
+}
+.sage-ptt-tip-icon { flex-shrink: 0; font-style: normal; }
+.sage-ptt-tip-text { flex: 1; }
+.sage-ptt-tip strong { font-weight: 700; font-style: normal; }
 
 /* ── Transcript preview ──────────────────────────────────────────────────── */
 .sage-preview-label {
@@ -1823,8 +1882,9 @@ p  { margin-bottom: 0.75rem; }
   border: 1.5px solid #C0DD97; border-radius: 12px;
   font-family: var(--font); font-size: 0.93rem; font-weight: 300;
   line-height: 1.6; background: #fff; color: #2c3a1e;
-  min-height: 44px; word-break: break-word;
-  resize: none; outline: none;
+  min-height: 44px; max-height: 40vh; word-break: break-word;
+  resize: none; overflow-y: auto; outline: none;
+  transition: height 0.08s ease-out;
 }
 .sage-send-btn {
   width: 44px; height: 44px; border-radius: 50%;
@@ -1858,19 +1918,24 @@ p  { margin-bottom: 0.75rem; }
 }
 .sage-dot-done { background: #3B6D11; }
 
-/* Topic indicator at top of chat area */
+/* Topic indicator bar at top of chat area — also hosts the sidebar toggle,
+   sharing one background so there's no white/green seam between them. */
 .chat-topic-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   gap: 0.55rem;
   padding: 0.65rem 1rem;
   font-size: 0.88rem;
   color: #3B6D11;
   font-weight: 500;
   background: #f4f9ee;
-  border-bottom: 1px solid #C0DD97;
   letter-spacing: 0.01em;
+}
+.chat-topic-indicator-text { display: flex; align-items: center; gap: 0.55rem; }
+.chat-topic-indicator .sage-sidebar-toggle {
+  position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);
 }
 .chat-topic-divider { color: #8aab68; font-weight: 400; }
 #chatTopicName { font-weight: 600; }

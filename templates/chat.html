@@ -15,51 +15,50 @@
   <p class="sage-tagline">A quiet space, just for you</p>
 </div>
 
-<div class="chat-layout">
+<div class="chat-layout" id="chatLayout">
 
   <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
-  <aside class="chat-sidebar sage-sidebar">
+  <aside class="chat-sidebar sage-sidebar" id="chatSidebar">
 
+    <!-- Identity + progress, combined into one low-key header row -->
     <div class="sage-identity-card">
       <span class="sage-avatar">🌿</span>
       <div class="sage-id-text">
         <div class="sage-name">{{ ai_name }}</div>
         <div class="sage-subtitle">Here to listen</div>
       </div>
-    </div>
-
-    <!-- Progress: turns within the current topic -->
-    <div class="sage-progress-card">
-      <div class="sage-progress-label">
-        <span id="currentRound">0</span>&thinsp;of&thinsp;{{ per_topic_turns }}&thinsp;moments
-      </div>
-      <div class="sage-dots-row">
-        {% for _ in range(per_topic_turns) %}
-        <span class="sage-dot"></span>
-        {% endfor %}
+      <div class="sage-progress-mini">
+        <span class="sage-progress-mini-label"><span id="currentRound">0</span>/{{ per_topic_turns }}</span>
+        <div class="sage-dots-row">
+          {% for _ in range(per_topic_turns) %}
+          <span class="sage-dot"></span>
+          {% endfor %}
+        </div>
       </div>
     </div>
 
     <!-- Topic prompt — only the topic the participant is currently on -->
-    <div class="sage-topic-box sage-topic-box--static topic-prompt-box">
+    <div class="sage-topic-box sage-topic-box--static topic-prompt-box" id="topicBox">
       <div class="sage-topic-header">
-        Your topic — <strong>{{ topic_name }}</strong>
+        <span>Your topic — <strong>{{ topic_name }}</strong></span>
+        <button type="button" class="sage-collapse-btn" id="topicCollapseBtn" onclick="toggleTopicBox()">Hide</button>
       </div>
-      <div class="sage-topic-body">
+      <div class="sage-topic-body" id="topicBody">
         <p class="sage-topic-prompt">{{ topic_prompt }}</p>
       </div>
     </div>
 
-    <!-- Private scratchpad -->
+    <!-- Private scratchpad — the main writing surface, given the most visual weight -->
     <div class="sage-scratchpad-box">
       <div class="sage-scratchpad-label">
-        ✏️ Your private notes — not shared with {{ ai_name }} (optional)
+        ✏️ Scratchpad — not shown to {{ ai_name }}, saved for research (optional)
       </div>
       <textarea
         id="scratchpad"
         class="sage-scratchpad-textarea"
-        placeholder="Draft your thoughts here before speaking…"
+        placeholder="Use the questions above to draft your thoughts here…"
         spellcheck="false"
+        rows="4"
       ></textarea>
     </div>
 
@@ -88,11 +87,16 @@
       </div>
     </div>
 
-    <!-- Topic indicator — current topic name + position -->
+    <!-- Topic indicator row — shares one bar with the sidebar toggle -->
     <div class="chat-topic-indicator">
-      <span>Topic {{ topic_index }} / {{ num_topics }}</span>
-      <span class="chat-topic-divider">·</span>
-      <span>{{ topic_name }}</span>
+      <button type="button" class="sage-sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()">
+        &#9664; Hide info
+      </button>
+      <span class="chat-topic-indicator-text">
+        <span>Topic {{ topic_index }} / {{ num_topics }}</span>
+        <span class="chat-topic-divider">·</span>
+        <span>{{ topic_name }}</span>
+      </span>
     </div>
 
     <!-- Status bar — centered, top of chat area -->
@@ -120,9 +124,12 @@
             <span id="pttLabel" class="sage-ptt-label">Click to speak</span>
           </button>
         </div>
-        <p class="sage-ptt-hint" id="pttHint">Click once to start · click again to stop</p>
-        <p class="sage-ptt-hint" style="margin-top:0.15rem; font-style:italic; color:#7a9a5a;">
-          Tip: use the scratchpad to gather your thoughts before recording — aim for 1&ndash;2 min.
+        <p class="sage-ptt-tip">
+          <span class="sage-ptt-tip-icon">💡</span>
+          <span class="sage-ptt-tip-text" id="pttTipText">
+            Tip: Take a look at the questions in "Your topic" above to help organize your thoughts in the scratchpad.<br>
+            Try to speak to as many of them as feels natural — the more detail you share, the better.
+          </span>
         </p>
       </div>
 
@@ -177,5 +184,5 @@
   const AI_NAME           = {{ ai_name | tojson }};
   const HAS_EXISTING_CHAT = {{ has_existing_chat | tojson }};
 </script>
-<script src="/static/js/chat.js"></script>
+<script src="/static/js/chat.js?v={{ asset_v() }}"></script>
 {% endblock %}

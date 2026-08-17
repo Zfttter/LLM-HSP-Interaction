@@ -366,6 +366,10 @@ CREATE INDEX IF NOT EXISTS idx_voice_turn_attempts_lookup
     ON voice_turn_attempts(session_id, turn_number);
 
 
+-- ── Migration: MBTI rationale free-text (run once) ───────────────────────────
+ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS mbti_rationale TEXT;
+
+
 -- ── Migration: replace gpt-4o-mini condition with Grok (run once) ────────────
 -- Drops the participants that were test-assigned to gpt-4o-mini, then repoints
 -- their 3 condition_counts slots (one per topic order) at grok-4.
@@ -374,6 +378,15 @@ DELETE FROM participants WHERE assigned_platform = 'gpt-4o-mini';
 UPDATE condition_counts
 SET platform = 'grok-4', current_count = 0
 WHERE platform = 'gpt-4o-mini';
+
+
+-- ── Migration: scratchpad-drafting behavior per turn (run once) ──────────────
+-- Snapshot of the private-notes scratchpad at the moment the participant
+-- submitted THIS turn's recording, plus lightweight drafting-behavior signals.
+ALTER TABLE voice_turns ADD COLUMN IF NOT EXISTS draft_final_text     TEXT NOT NULL DEFAULT '';
+ALTER TABLE voice_turns ADD COLUMN IF NOT EXISTS draft_started_at     TIMESTAMPTZ;
+ALTER TABLE voice_turns ADD COLUMN IF NOT EXISTS draft_char_count     INT NOT NULL DEFAULT 0;
+ALTER TABLE voice_turns ADD COLUMN IF NOT EXISTS draft_revision_count INT NOT NULL DEFAULT 0;
 
 
 -- ── Row-level security (optional, recommended for production) ────────────────

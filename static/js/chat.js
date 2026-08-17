@@ -23,9 +23,66 @@ let turnTimings = {
   submitted_at:      null,
 };
 
+// Scratchpad drafting-behavior tracking — reset after each turn is submitted.
+// `draftLastLength` is the only running state we need to detect a "got shorter"
+// edit (a deletion); we don't keep intermediate drafts, just this turn's final snapshot.
+let draftLastLength    = 0;
+let draftStartedAt     = null;
+let draftRevisionCount = 0;
+
+// Recording timer — updates the button label with a live "00:45" style
+// elapsed-time readout while state === "RECORDING". Same look throughout,
+// no thresholds that change color/size.
+let recordingTimerHandle = null;
+let recordingStartMs     = null;
+let pttTipDefaultHTML    = null;
+
+function formatMMSS(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+
+function updateRecordingLabel() {
+  const labelEl = document.getElementById("pttLabel");
+  if (!labelEl) return;
+  const elapsed = Math.floor((Date.now() - recordingStartMs) / 1000);
+  labelEl.textContent = `🔴 ${formatMMSS(elapsed)} Click to stop`;
+}
+
+function startRecordingTimer() {
+  recordingStartMs = Date.now();
+  updateRecordingLabel();
+  recordingTimerHandle = setInterval(updateRecordingLabel, 500);
+}
+
+function stopRecordingTimer() {
+  if (recordingTimerHandle) { clearInterval(recordingTimerHandle); recordingTimerHandle = null; }
+}
+
 function nowISO() { return new Date().toISOString(); }
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
+  // Cache the default (non-recording) tip text so we can restore it after
+  // swapping in the "Recording..." message.
+  const tipTextEl = document.getElementById("pttTipText");
+  if (tipTextEl) pttTipDefaultHTML = tipTextEl.innerHTML;
+
+  // Auto-grow the transcript review textarea as the participant edits it.
+  const transcriptEl = document.getElementById("transcriptText");
+  if (transcriptEl) transcriptEl.addEventListener("input", () => autoGrow(transcriptEl));
+
+  // Auto-grow the private notes scratchpad too (capped by max-height in CSS),
+  // and track drafting behavior: first-keystroke timestamp + "got shorter" count.
+  const scratchpadEl = document.getElementById("scratchpad");
+  if (scratchpadEl) scratchpadEl.addEventListener("input", () => {
+    autoGrow(scratchpadEl);
+    const len = scratchpadEl.value.length;
+    if (draftStartedAt === null && len > 0) draftStartedAt = nowISO();
+    if (len < draftLastLength) draftRevisionCount++;
+    draftLastLength = len;
+  });
+
   requestMicPermission().then(() => {
     if (typeof HAS_EXISTING_CHAT !== "undefined" && HAS_EXISTING_CHAT) {
       // Returning to a chat already in progress — skip countdown, rehydrate from DB.
@@ -261,6 +318,14 @@ async function submitTurn() {
     if (turnTimings.preview_shown_at)  fd.append("preview_shown_at",  turnTimings.preview_shown_at);
     if (turnTimings.submitted_at)      fd.append("submitted_at",      turnTimings.submitted_at);
 
+    // Scratchpad snapshot for this turn — whatever's in the box right now,
+    // plus this turn's drafting-behavior signals.
+    const draftText = document.getElementById("scratchpad").value;
+    fd.append("draft_final_text", draftText);
+    fd.append("draft_char_count", String(draftText.length));
+    fd.append("draft_revision_count", String(draftRevisionCount));
+    if (draftStartedAt) fd.append("draft_started_at", draftStartedAt);
+
     const res  = await fetch("/api/turn", { method: "POST", body: fd });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "Server error");
@@ -271,6 +336,11 @@ async function submitTurn() {
       ai_audio_ended_at: null, record_started_at: null,
       record_ended_at:   null, preview_shown_at:  null, submitted_at: null,
     };
+    // Reset drafting-behavior tracking for the next turn (the scratchpad text
+    // itself is left untouched — it persists across turns within a topic).
+    draftLastLength    = draftText.length;
+    draftStartedAt     = null;
+    draftRevisionCount = 0;
 
     removeTypingIndicator();
     appendMessage("ai", data.ai_text, null);
@@ -334,6 +404,21 @@ function playAudio(b64mp3, onEnded) {
   });
 }
 
+// ── Collapsible topic box / sidebar ────────────────────────────────────────────
+function toggleTopicBox() {
+  const box = document.getElementById("topicBox");
+  const btn = document.getElementById("topicCollapseBtn");
+  const collapsed = box.classList.toggle("collapsed");
+  btn.textContent = collapsed ? "Show" : "Hide";
+}
+
+function toggleSidebar() {
+  const layout = document.getElementById("chatLayout");
+  const btn    = document.getElementById("sidebarToggleBtn");
+  const collapsed = layout.classList.toggle("sidebar-collapsed");
+  btn.innerHTML = collapsed ? "&#9654; Show info" : "&#9664; Hide info";
+}
+
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function showPTT() {
   document.getElementById("pttState").style.display = "";
@@ -341,14 +426,21 @@ function showPTT() {
   document.getElementById("voiceInputArea").style.display = "";
 }
 
+function autoGrow(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
 function showPreview(transcript) {
   // Stamp the moment the editable preview becomes visible — start of editing duration.
   turnTimings.preview_shown_at = nowISO();
-  document.getElementById("transcriptText").value = transcript;
+  const textEl = document.getElementById("transcriptText");
+  textEl.value = transcript;
   document.getElementById("pttState").style.display = "none";
   document.getElementById("previewState").style.display = "";
   document.getElementById("voiceInputArea").style.display = "";
   setStatus("idle", "Review your message, then send");
+  autoGrow(textEl);
 }
 
 function hideInputArea() {
@@ -376,23 +468,28 @@ function setState(newState) {
   state = newState;
   const pttBtn = document.getElementById("pttBtn");
 
-  const labelEl = document.getElementById("pttLabel");
+  const labelEl  = document.getElementById("pttLabel");
+  const tipTextEl = document.getElementById("pttTipText");
 
   switch (newState) {
     case "IDLE":
       setStatus("idle", "Click the button to speak");
       if (pttBtn) { pttBtn.classList.remove("recording"); pttBtn.disabled = false; }
       if (labelEl) labelEl.textContent = "Click to speak";
+      stopRecordingTimer();
+      if (tipTextEl && pttTipDefaultHTML !== null) tipTextEl.innerHTML = pttTipDefaultHTML;
       break;
     case "RECORDING":
       setStatus("recording", "Recording…");
       if (pttBtn) pttBtn.classList.add("recording");
-      if (labelEl) labelEl.textContent = "Click to stop";
+      startRecordingTimer();
+      if (tipTextEl) tipTextEl.textContent = "🔴 Recording... speak naturally, click again when you're done.";
       break;
     case "TRANSCRIBING":
       setStatus("processing", "Transcribing…");
       if (pttBtn) { pttBtn.classList.remove("recording"); pttBtn.disabled = true; }
       if (labelEl) labelEl.textContent = "Processing…";
+      stopRecordingTimer();
       break;
     case "PREVIEW":
       // status set in showPreview()

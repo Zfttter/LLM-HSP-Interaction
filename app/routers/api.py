@@ -470,6 +470,12 @@ async def process_turn(request: Request):
         "submitted_at":      form.get("submitted_at")      or None,
     }
 
+    # Scratchpad drafting-behavior snapshot for this turn (see chat.js submitTurn()).
+    draft_final_text     = str(form.get("draft_final_text", ""))
+    draft_started_at     = form.get("draft_started_at") or None
+    draft_char_count     = int(form.get("draft_char_count", 0) or 0)
+    draft_revision_count = int(form.get("draft_revision_count", 0) or 0)
+
     audio_url      = pending.get("audio_url", "")
     turn_number    = pending.get("turn_number", request.session.get("turn_number", 0) + 1)
     # Attempt numbers are sequential from 1, so the submitted attempt's number
@@ -524,6 +530,11 @@ async def process_turn(request: Request):
         "record_ended_at":        timings["record_ended_at"],
         "preview_shown_at":       timings["preview_shown_at"],
         "submitted_at":           timings["submitted_at"],
+        # Scratchpad drafting-behavior snapshot for this turn
+        "draft_final_text":       draft_final_text,
+        "draft_started_at":       draft_started_at,
+        "draft_char_count":       draft_char_count,
+        "draft_revision_count":   draft_revision_count,
     })
 
     if is_final:
@@ -578,6 +589,7 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
     mbti_guess               = str(form.get("mbti_guess", "")).strip().upper()
     if mbti_guess == "UNKNOWN":
         mbti_guess = ""
+    mbti_rationale           = str(form.get("mbti_rationale", "")).strip()
     data_sharing_consent     = str(form.get("data_sharing_consent", "")) == "yes"
 
     # Validate 1-7 fields
@@ -590,6 +602,10 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
 
     # Validate closeness_ios (1-7)
     if not 1 <= closeness_ios <= 7:
+        return RedirectResponse(url="/post-survey?error=invalid", status_code=302)
+
+    # Validate the MBTI rationale free-text (required)
+    if not mbti_rationale:
         return RedirectResponse(url="/post-survey?error=invalid", status_code=302)
 
     current_ai = ai_name_for_topic(topics_completed)
@@ -612,6 +628,7 @@ async def submit_post_survey(request: Request, background_tasks: BackgroundTasks
         "emotional_relief":         emotional_relief,
         "perceived_sycophancy":     perceived_sycophancy,
         "mbti_guess":               mbti_guess or None,
+        "mbti_rationale":           mbti_rationale,
     })
 
     # Bump topic counter, clear awaiting flag, capture consent on the LAST survey

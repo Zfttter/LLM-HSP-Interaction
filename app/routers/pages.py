@@ -2,6 +2,7 @@
 Page routes — each returns an HTML response via Jinja2 template.
 State guards redirect participants who try to skip steps.
 """
+import os
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -10,6 +11,17 @@ import app.database as db_
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+
+# Cache-busting query param for /static assets, derived from file mtimes so a
+# browser never serves a stale style.css/chat.js after we edit them.
+def _asset_version() -> str:
+    paths = ["static/css/style.css", "static/js/chat.js"]
+    mtimes = [os.path.getmtime(p) for p in paths if os.path.exists(p)]
+    return str(int(max(mtimes))) if mtimes else "0"
+
+# Registered as a callable (not the computed value) so it re-reads mtimes on
+# every render — static file edits show up immediately, no restart needed.
+templates.env.globals["asset_v"] = _asset_version
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

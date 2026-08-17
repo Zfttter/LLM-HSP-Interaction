@@ -69,3 +69,4 @@ class PostSurveySubmission(BaseModel):
     perceived_sycophancy: int          # 1-7
     # Bonus
     mbti_guess:           str
+    mbti_rationale:       str
