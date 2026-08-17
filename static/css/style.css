@@ -1846,12 +1846,7 @@ p  { margin-bottom: 0.75rem; }
   50%       { box-shadow: 0 4px 22px rgba(59,109,17,0.5);  transform: scale(1.015); }
 }
 .sage-ptt-btn.recording {
-  background: #c0392b; box-shadow: 0 3px 16px rgba(192,57,43,0.45);
-  animation: recPulse 1.2s ease-in-out infinite;
-}
-@keyframes recPulse {
-  0%, 100% { box-shadow: 0 3px 16px rgba(192,57,43,0.45); transform: scale(1); }
-  50%       { box-shadow: 0 4px 26px rgba(192,57,43,0.75); transform: scale(1.03); }
+  background: #B8752A; box-shadow: 0 3px 16px rgba(184,117,42,0.35);
 }
 .sage-ptt-btn:disabled { background: #C0DD97; cursor: not-allowed; transform: none; box-shadow: none; animation: none; }
 

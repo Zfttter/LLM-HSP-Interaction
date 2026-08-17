@@ -47,7 +47,7 @@ function updateRecordingLabel() {
   const labelEl = document.getElementById("pttLabel");
   if (!labelEl) return;
   const elapsed = Math.floor((Date.now() - recordingStartMs) / 1000);
-  labelEl.textContent = `🔴 ${formatMMSS(elapsed)} Click to stop`;
+  labelEl.textContent = `🟠 ${formatMMSS(elapsed)} Click to stop`;
 }
 
 function startRecordingTimer() {
@@ -483,7 +483,7 @@ function setState(newState) {
       setStatus("recording", "Recording…");
       if (pttBtn) pttBtn.classList.add("recording");
       startRecordingTimer();
-      if (tipTextEl) tipTextEl.textContent = "🔴 Recording... speak naturally, click again when you're done.";
+      if (tipTextEl) tipTextEl.textContent = "🟠 Recording... speak naturally, click again when you're done.";
       break;
     case "TRANSCRIBING":
       setStatus("processing", "Transcribing…");
