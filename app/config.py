@@ -86,7 +86,7 @@ PLATFORMS = [
     "claude-sonnet-4-6",
     "gemini-2.5-flash",
     "deepseek-chat",
-    "llama-3.3-70b-versatile",
+    "openai/gpt-oss-120b",
 ]
 
 PLATFORM_DISPLAY = {
@@ -95,7 +95,7 @@ PLATFORM_DISPLAY = {
     "claude-sonnet-4-6": "Claude Sonnet",
     "gemini-2.5-flash": "Gemini 2.5 Flash",
     "deepseek-chat": "DeepSeek Chat",
-    "llama-3.3-70b-versatile": "Llama 3.3 70B",
+    "openai/gpt-oss-120b": "GPT-OSS 120B",
 }
 
 TOPICS = ["social_anxiety", "rumination", "anticipatory_anxiety"]

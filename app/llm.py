@@ -2,6 +2,7 @@
 LLM service — routes to the correct provider based on platform name.
 """
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import openai
@@ -30,8 +31,8 @@ _openai_client: Optional[openai.OpenAI] = None
 _anthropic_client: Optional[anthropic.Anthropic] = None
 _gemini_client: Optional[openai.OpenAI] = None
 _deepseek_client: Optional[openai.OpenAI] = None
-_groq_client: Optional[openai.OpenAI] = None
 _xai_client: Optional[openai.OpenAI] = None
+_groq_client: Optional[openai.OpenAI] = None
 
 
 def _openai() -> openai.OpenAI:
@@ -67,15 +68,6 @@ def _deepseek() -> openai.OpenAI:
         )
     return _deepseek_client
 
-def _groq() -> openai.OpenAI:
-    global _groq_client
-    if _groq_client is None:
-        _groq_client = _make_openai_client(
-            settings.GROQ_API_KEY,
-            base_url="https://api.groq.com/openai/v1",
-        )
-    return _groq_client
-
 def _xai() -> openai.OpenAI:
     global _xai_client
     if _xai_client is None:
@@ -84,6 +76,15 @@ def _xai() -> openai.OpenAI:
             base_url="https://api.x.ai/v1",
         )
     return _xai_client
+
+def _groq() -> openai.OpenAI:
+    global _groq_client
+    if _groq_client is None:
+        _groq_client = _make_openai_client(
+            settings.GROQ_API_KEY,
+            base_url="https://api.groq.com/openai/v1",
+        )
+    return _groq_client
 
 
 _RETRYABLE = (
@@ -138,7 +139,7 @@ def call_llm(
             return _call_openai_compat(_gemini(), platform, conversation_history, actual_system, actual_max_tokens)
         elif platform == "deepseek-chat":
             return _call_openai_compat(_deepseek(), platform, conversation_history, actual_system, actual_max_tokens)
-        elif platform == "llama-3.3-70b-versatile":
+        elif platform == "openai/gpt-oss-120b":
             return _call_openai_compat(_groq(), platform, conversation_history, actual_system, actual_max_tokens)
         elif platform == "grok-4":
             return _call_openai_compat(_xai(), platform, conversation_history, actual_system, actual_max_tokens)
@@ -177,3 +178,60 @@ def _call_anthropic(history, system_prompt, max_tokens):
     )
     print(f"[LLM] claude-sonnet-4-6 returned in {time.time()-t0:.2f}s")
     return response.content[0].text.strip()
+
+
+# ── Health check ──────────────────────────────────────────────────────────────
+# Fires a real, near-zero-cost request (max_tokens=1) at each provider so a
+# bad/missing key or an unreachable endpoint shows up before a participant
+# hits it. Kept out of call_llm's retry path — a health check should fail fast.
+
+_HEALTH_TIMEOUT_S = 10
+
+
+def _health_openai_compat(client, model: str) -> None:
+    client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": "hi"}],
+        max_tokens=1,
+        timeout=_HEALTH_TIMEOUT_S,
+    )
+
+
+def _health_anthropic() -> None:
+    _anthropic().messages.create(
+        model="claude-sonnet-4-6",
+        messages=[{"role": "user", "content": "hi"}],
+        max_tokens=1,
+        timeout=_HEALTH_TIMEOUT_S,
+    )
+
+
+_HEALTH_CHECKS = {
+    "gpt-4o":            lambda: _health_openai_compat(_openai(), "gpt-4o"),
+    "claude-sonnet-4-6": _health_anthropic,
+    "gemini-2.5-flash":  lambda: _health_openai_compat(_gemini(), "gemini-2.5-flash"),
+    "deepseek-chat":     lambda: _health_openai_compat(_deepseek(), "deepseek-chat"),
+    "openai/gpt-oss-120b": lambda: _health_openai_compat(_groq(), "openai/gpt-oss-120b"),
+    "grok-4":            lambda: _health_openai_compat(_xai(), "grok-4"),
+}
+
+
+def _run_one_check(name: str, fn) -> tuple[str, dict]:
+    t0 = time.time()
+    try:
+        fn()
+        return name, {"ok": True, "elapsed_ms": int((time.time() - t0) * 1000)}
+    except Exception as exc:
+        return name, {"ok": False, "elapsed_ms": int((time.time() - t0) * 1000), "error": str(exc)}
+
+
+def check_all_providers() -> dict:
+    """Ping every LLM provider concurrently with a 1-token request. Returns
+    {platform: {ok, elapsed_ms, error?}} for all 6 platforms."""
+    results: dict = {}
+    with ThreadPoolExecutor(max_workers=len(_HEALTH_CHECKS)) as pool:
+        futures = [pool.submit(_run_one_check, name, fn) for name, fn in _HEALTH_CHECKS.items()]
+        for future in futures:
+            name, result = future.result()
+            results[name] = result
+    return results

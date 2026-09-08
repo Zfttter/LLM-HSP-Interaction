@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import settings
 import app.database as db_
+import app.llm as llm_
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -206,6 +207,26 @@ def api_participant_detail(request: Request, participant_id: str):
         "total_count":      len(all_ids),
         "tts_voice":        tts_voice,
         "turns_completed":  len(voice_turns),
+    })
+
+
+@router.get("/admin/api/system-check")
+def api_system_check(request: Request):
+    """Pings all 6 LLM providers (1-token requests) plus Supabase DB/storage.
+    Use this before opening a study to Prolific instead of walking the whole
+    flow by hand. Access: GET /admin/api/system-check?key=<ADMIN_KEY>"""
+    key = request.query_params.get("key") or request.headers.get("X-Admin-Key")
+    if not _check_key(key):
+        return _FORBIDDEN
+
+    providers = llm_.check_all_providers()
+    supabase = db_.check_health()
+    all_ok = all(v["ok"] for v in providers.values()) and all(v["ok"] for v in supabase.values())
+
+    return JSONResponse({
+        "ok": all_ok,
+        "providers": providers,
+        "supabase": supabase,
     })
 
 

@@ -243,3 +243,24 @@ def save_voice_turn(data: dict) -> None:
         db().table("voice_turns").insert(data).execute()
     except Exception as exc:
         print(f"[DB] voice_turns insert failed: {exc}")
+
+
+# ── Health check ──────────────────────────────────────────────────────────────
+
+def check_health() -> dict:
+    """Verify the Supabase table connection and storage bucket are reachable."""
+    result: dict = {}
+
+    try:
+        db().table("participants").select("id").limit(1).execute()
+        result["database"] = {"ok": True}
+    except Exception as exc:
+        result["database"] = {"ok": False, "error": str(exc)}
+
+    try:
+        db().storage.from_(_BUCKET).list()
+        result["storage"] = {"ok": True}
+    except Exception as exc:
+        result["storage"] = {"ok": False, "error": str(exc)}
+
+    return result
