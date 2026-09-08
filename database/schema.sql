@@ -405,3 +405,11 @@ ALTER TABLE voice_turns ADD COLUMN IF NOT EXISTS draft_revision_count INT NOT NU
 --
 -- Use SUPABASE_SERVICE_KEY (not the anon key) in your Railway env vars
 -- if you enable RLS.
+
+
+-- ── Migration: replace llama-3.3-70b-versatile with gpt-oss-120b (run once) ──
+-- Groq retired llama-3.3-70b-versatile; repoint its 3 condition_counts slots
+-- (one per topic order) at openai/gpt-oss-120b, also served via Groq.
+UPDATE condition_counts
+SET platform = 'openai/gpt-oss-120b'
+WHERE platform = 'llama-3.3-70b-versatile';
