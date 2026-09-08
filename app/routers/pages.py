@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 import app.database as db_
+from app.config import PROLIFIC_COMPLETION_URL
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -279,6 +280,7 @@ def complete(request: Request):
         "complete.html",
         {
             "completion_code": code,
+            "prolific_url":  PROLIFIC_COMPLETION_URL,
             "hsps_score":    hsps_score,
             "hsps_pct":      hsps_pct,
             "hsps_level":    hsps_level,

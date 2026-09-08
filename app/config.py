@@ -155,6 +155,12 @@ LLM_TEMPERATURE = 0.7
 LLM_MAX_TOKENS = 1200
 CONVERSATION_ROUNDS = 5
 
+# ── Prolific completion ────────────────────────────────────────────────────────
+# Fixed per Prolific study (set in the study's "Completion paths" config, not
+# per-participant) — update this if the study is recreated with a new code.
+PROLIFIC_COMPLETION_CODE = "C90HSV81"
+PROLIFIC_COMPLETION_URL = "https://app.prolific.com/submissions/complete?cc=C90HSV81"
+
 # Per-topic AI names (Sage → Willow → Juniper across the 3 topics)
 AI_NAMES = ["Sage", "Willow", "Juniper"]
 AI_NAME = AI_NAMES[0]   # kept for legacy code that still references AI_NAME

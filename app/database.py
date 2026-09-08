@@ -4,13 +4,11 @@ Supabase database helpers.
 All functions use the synchronous supabase-py client.
 FastAPI runs sync route handlers in a thread pool automatically.
 """
-import random
-import string
 from typing import Optional
 
 from supabase import create_client, Client
 
-from app.config import settings
+from app.config import settings, PROLIFIC_COMPLETION_CODE
 
 
 def _get_client() -> Client:
@@ -158,18 +156,13 @@ def save_mbti_prediction(participant_id: str, data: dict) -> None:
 
 
 # ── Completion code ───────────────────────────────────────────────────────────
-
-def generate_completion_code() -> str:
-    chars = string.ascii_uppercase + string.digits
-    p1 = "".join(random.choices(chars, k=4))
-    p2 = "".join(random.choices(chars, k=4))
-    return f"HSP-{p1}-{p2}"
-
+# Prolific requires the SAME fixed code for every participant (set in the
+# study's "Completion paths" config on Prolific's side) — not a per-participant
+# value, which Prolific would reject as a mismatch.
 
 def finalize_participant(participant_id: str) -> str:
-    code = generate_completion_code()
-    update_participant(participant_id, {"completion_code": code})
-    return code
+    update_participant(participant_id, {"completion_code": PROLIFIC_COMPLETION_CODE})
+    return PROLIFIC_COMPLETION_CODE
 
 
 # ── Voice pipeline ────────────────────────────────────────────────────────────
