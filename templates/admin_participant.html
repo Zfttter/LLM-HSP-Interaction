@@ -248,6 +248,19 @@ body {
   border-bottom: 1px solid #f1f5f9;
 }
 .conv-turn:last-child { border-bottom: none; }
+.topic-divider {
+  margin: 22px 0 10px;
+  padding: 8px 14px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4338ca;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.topic-divider:first-child { margin-top: 0; }
 .conv-speaker {
   font-size: 11px;
   font-weight: 600;
@@ -569,7 +582,20 @@ function renderRight(p) {
     &nbsp;·&nbsp; ${totalWords} total words &nbsp;·&nbsp; ${formatDuration(totalRecordingMs)} total recording time
   </div>`;
 
+  const topicsSeen = [];
+  let lastTopic = undefined;
+
   turns.forEach(turn => {
+    // Turn 1 ("Intro") repeats once per topic (3 topics total) — without a
+    // divider that reads as the same intro looping, instead of 3 separate
+    // topic sessions. Insert one whenever the topic changes.
+    if (turn.topic !== lastTopic) {
+      lastTopic = turn.topic;
+      if (!topicsSeen.includes(turn.topic)) topicsSeen.push(turn.topic);
+      const topicName = TOPIC_SHORT[turn.topic] || turn.topic || "Unknown topic";
+      h += `<div class="topic-divider">Topic ${topicsSeen.length} of 3 &nbsp;—&nbsp; ${esc(topicName)}</div>`;
+    }
+
     const tNum = turn.turn_number;
     const label = tNum === 1 ? "Intro" : tNum === 6 ? "Closing" : `Turn ${tNum - 1}`;
 
