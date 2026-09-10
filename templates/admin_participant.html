@@ -629,7 +629,11 @@ function renderRight(p) {
     const submitted = turn.whisper_transcript || "";
     const raw       = turn.whisper_transcript_raw || "";
     const wasEdited = raw && submitted && raw.trim() !== submitted.trim();
-    const editPct   = wasEdited ? Math.round(100 * editDistance(raw, submitted) / Math.max(raw.length, 1)) : 0;
+    // Normalize by the LONGER of the two strings, not just the raw transcript —
+    // otherwise a near-empty Whisper transcript (e.g. "you") makes any real
+    // rewrite blow past 100% (edit distance ends up close to the rewritten
+    // text's full length, divided by a tiny raw length).
+    const editPct   = wasEdited ? Math.round(100 * editDistance(raw, submitted) / Math.max(raw.length, submitted.length, 1)) : 0;
 
     const wc = submitted.trim() ? countWords(submitted) : 0;
     const shortWarn = wc > 0 && wc < 10;
