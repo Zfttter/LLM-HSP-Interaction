@@ -582,6 +582,16 @@
 
       <div class="rq-section" style="margin-top:28px">
         <div class="rq-section-header">
+          <div class="rq-section-title">Total Words by Participant</div>
+          <div class="rq-section-sub">Sum of all words spoken across all completed turns, one bar per participant (sorted highest to lowest), colored by platform. Only participants with at least one voice turn are shown.</div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-canvas-wrap" style="height:340px"><canvas id="chart-words-per-participant"></canvas></div>
+        </div>
+      </div>
+
+      <div class="rq-section" style="margin-top:28px">
+        <div class="rq-section-header">
           <div class="rq-section-title">Pre-Survey Factors by HSP Tier</div>
           <div class="rq-section-sub" id="presurvey-sub">
             Everyone who completed the screening survey is split into "Low HSP" / "High HSP" by a median cut on
@@ -1470,6 +1480,45 @@ function renderHspsScatter(canvasId, participants, yKey, yLabel) {
 }
 
 // Bar chart of one metric aggregated per platform.
+function renderWordsPerParticipant(participants) {
+  const canvasId = "chart-words-per-participant";
+  destroyChart(canvasId);
+  const withWords = participants
+    .filter(p => p.total_words != null)
+    .sort((a, b) => b.total_words - a.total_words);
+  if (!withWords.length) return;
+
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  researchCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: withWords.map(p => (p.prolific_id || p.id).slice(0, 8)),
+      datasets: [{
+        label: "Total words",
+        data: withWords.map(p => p.total_words),
+        backgroundColor: withWords.map(p => platformColor(p.platform)),
+        borderRadius: 4,
+        maxBarThickness: 50,
+      }],
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.parsed.y.toLocaleString()} words — ${platformLabel(withWords[ctx.dataIndex].platform)}`,
+          },
+        },
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: "Total words", font: { size: 12, weight: "600" } }, grid: { color: "#f1f5f9" } },
+        x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 }, grid: { display: false } },
+      },
+    },
+  });
+}
+
 function renderPlatformBar(canvasId, platforms, metricKey, yLabel) {
   destroyChart(canvasId);
   const plats = Object.keys(platforms);
@@ -1613,6 +1662,7 @@ function fmtNum(v, digits = 2) { return v == null ? "—" : v.toFixed(digits); }
 function renderResearch(data) {
   document.getElementById("rq-n").textContent = data.participants.length;
 
+  renderWordsPerParticipant(data.participants);
   renderHspsScatter("chart-rq1-totalwords", data.participants, "total_words", "Total words");
   renderHspsScatter("chart-rq1-hes", data.participants, "hesitation_ms", "Hesitation (ms)");
   renderHspsScatter("chart-rq1-fp",  data.participants, "first_person_ratio", "% of words");
