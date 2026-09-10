@@ -248,8 +248,9 @@ body {
   border-bottom: 1px solid #f1f5f9;
 }
 .conv-turn:last-child { border-bottom: none; }
+.topic-group { margin-bottom: 14px; }
 .topic-divider {
-  margin: 22px 0 10px;
+  margin: 22px 0 0;
   padding: 8px 14px;
   background: #eef2ff;
   border: 1px solid #c7d2fe;
@@ -259,8 +260,23 @@ body {
   color: #4338ca;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
 }
-.topic-divider:first-child { margin-top: 0; }
+.topic-divider:hover { background: #e0e7ff; }
+.topic-group:first-child .topic-divider { margin-top: 0; }
+.topic-caret { font-size: 10px; width: 10px; }
+.topic-turn-count {
+  margin-left: auto;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #6366f1;
+}
+.topic-body { margin-top: 10px; }
 .conv-speaker {
   font-size: 11px;
   font-weight: 600;
@@ -582,20 +598,31 @@ function renderRight(p) {
     &nbsp;·&nbsp; ${totalWords} total words &nbsp;·&nbsp; ${formatDuration(totalRecordingMs)} total recording time
   </div>`;
 
-  const topicsSeen = [];
-  let lastTopic = undefined;
-
+  // Group consecutive turns into topic sections (turn_number resets to 1 at
+  // the start of each of the 3 topics) so each topic collapses/expands as
+  // its own block instead of reading as one long, repeating list.
+  const topicGroups = [];
   turns.forEach(turn => {
-    // Turn 1 ("Intro") repeats once per topic (3 topics total) — without a
-    // divider that reads as the same intro looping, instead of 3 separate
-    // topic sessions. Insert one whenever the topic changes.
-    if (turn.topic !== lastTopic) {
-      lastTopic = turn.topic;
-      if (!topicsSeen.includes(turn.topic)) topicsSeen.push(turn.topic);
-      const topicName = TOPIC_SHORT[turn.topic] || turn.topic || "Unknown topic";
-      h += `<div class="topic-divider">Topic ${topicsSeen.length} of 3 &nbsp;—&nbsp; ${esc(topicName)}</div>`;
+    const last = topicGroups[topicGroups.length - 1];
+    if (!last || last.topic !== turn.topic) {
+      topicGroups.push({ topic: turn.topic, turns: [turn] });
+    } else {
+      last.turns.push(turn);
     }
+  });
 
+  topicGroups.forEach((group, gi) => {
+    const topicName = TOPIC_SHORT[group.topic] || group.topic || "Unknown topic";
+    const isOpen = gi === 0;  // first topic expanded by default, rest collapsed
+    h += `<div class="topic-group">
+      <div class="topic-divider" onclick="toggleTopic(${gi})">
+        <span id="topic-caret-${gi}" class="topic-caret">${isOpen ? "▾" : "▸"}</span>
+        Topic ${gi + 1} of ${topicGroups.length} &nbsp;—&nbsp; ${esc(topicName)}
+        <span class="topic-turn-count">${group.turns.length} turns</span>
+      </div>
+      <div class="topic-body" id="topic-body-${gi}" style="display:${isOpen ? "block" : "none"}">`;
+
+    group.turns.forEach(turn => {
     const tNum = turn.turn_number;
     const label = tNum === 1 ? "Intro" : tNum === 6 ? "Closing" : `Turn ${tNum - 1}`;
 
@@ -653,9 +680,20 @@ function renderRight(p) {
         <div class="conv-text">${turn.llm_response_text ? esc(turn.llm_response_text) : '<em style="color:#94a3b8">No response recorded</em>'}</div>
       </div>
     </div>`;
+    });
+
+    h += `</div></div>`;  // close .topic-body and .topic-group
   });
 
   document.getElementById("right-panel").innerHTML = h;
+}
+
+function toggleTopic(i) {
+  const body  = document.getElementById(`topic-body-${i}`);
+  const caret = document.getElementById(`topic-caret-${i}`);
+  const isOpen = body.style.display !== "none";
+  body.style.display = isOpen ? "none" : "block";
+  caret.textContent = isOpen ? "▸" : "▾";
 }
 
 let currentAudio = null;

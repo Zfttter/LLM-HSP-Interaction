@@ -149,11 +149,13 @@ def api_participant_detail(request: Request, participant_id: str):
         return JSONResponse({"error": "Not found"}, status_code=404)
     p = p_res.data[0]
 
-    # Voice turns (primary conversation data)
+    # Voice turns (primary conversation data) — ordered chronologically so the
+    # 3 topics stay grouped together, rather than by turn_number (which
+    # interleaves all 3 topics' turn 1s, then all their turn 2s, etc.)
     vt_res = (
         db_.db().table("voice_turns").select("*")
         .eq("participant_id", participant_id)
-        .order("turn_number")
+        .order("created_at")
         .execute()
     )
     voice_turns = vt_res.data or []
