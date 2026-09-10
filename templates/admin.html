@@ -95,6 +95,17 @@
     transition: border-color 0.15s;
   }
   .search-input:focus { border-color: #94a3b8; }
+  .status-filter {
+    padding: 7px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: #1e293b;
+    outline: none;
+  }
+  .status-filter:focus { border-color: #94a3b8; }
   .count-label {
     color: #64748b;
     font-size: 12px;
@@ -473,6 +484,14 @@
   <div id="tab-participants" class="tab-panel active">
     <div class="toolbar">
       <input type="text" class="search-input" id="search-input" placeholder="Search Prolific ID…" oninput="onSearch()">
+      <select class="status-filter" id="status-filter" onchange="onSearch()">
+        <option value="all">All statuses</option>
+        <option value="done">Done</option>
+        <option value="chatted">Chatted</option>
+        <option value="surveyed">Surveyed</option>
+        <option value="started">Started</option>
+        <option value="excluded">Screened out</option>
+      </select>
       <span class="count-label" id="count-label">Loading…</span>
       <a id="csv-export-btn" class="export-btn" href="#" target="_blank">⬇ Export CSV</a>
     </div>
@@ -747,11 +766,21 @@ function onSearch() {
   applyFilterAndSort();
 }
 
+function statusKey(p) {
+  if (p.excluded)              return "excluded";
+  if (p.post_survey_completed) return "done";
+  if (p.chat_completed)        return "chatted";
+  if (p.survey_completed)      return "surveyed";
+  return "started";
+}
+
 function applyFilterAndSort() {
   const q = document.getElementById("search-input").value.trim().toLowerCase();
+  const statusWanted = document.getElementById("status-filter").value;
   filteredParticipants = allParticipants.filter(p => {
-    if (!q) return true;
-    return (p.prolific_id || "").toLowerCase().includes(q);
+    if (q && !(p.prolific_id || "").toLowerCase().includes(q)) return false;
+    if (statusWanted !== "all" && statusKey(p) !== statusWanted) return false;
+    return true;
   });
   sortParticipants();
   renderTable();
