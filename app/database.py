@@ -38,20 +38,29 @@ def get_participant_by_id(participant_id: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
+_DISPLAY_ID_TZ = "America/New_York"  # research team's local time zone
+
+
 def _generate_display_id() -> Optional[str]:
     """'MMDD-NN' label — date + per-day sequence number, used as the Storage
-    folder name instead of the raw participant UUID. Best-effort: a race
-    between two signups in the same instant could collide (UNIQUE constraint),
-    in which case the caller just falls back to the UUID for that participant."""
-    from datetime import datetime, timezone
-    today = datetime.now(timezone.utc)
-    date_key = today.strftime("%m%d")
-    start_of_day = today.strftime("%Y-%m-%dT00:00:00+00:00")
+    folder name instead of the raw participant UUID. The date is the research
+    team's local calendar day (not UTC — created_at is UTC, but a UTC-day label
+    would flip to the "next day" a few hours before local midnight). Best-effort:
+    a race between two signups in the same instant could collide (UNIQUE
+    constraint), in which case the caller just falls back to the UUID."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    tz = ZoneInfo(_DISPLAY_ID_TZ)
+    now_local = datetime.now(tz)
+    date_key = now_local.strftime("%m%d")
+    start_of_day_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_day_utc = start_of_day_local.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%S+00:00")
     try:
         result = (
             db().table("participants")
             .select("id", count="exact")
-            .gte("created_at", start_of_day)
+            .gte("created_at", start_of_day_utc)
             .execute()
         )
         seq = (result.count or 0) + 1
