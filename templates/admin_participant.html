@@ -626,7 +626,32 @@ function renderRight(p) {
   document.getElementById("right-panel").innerHTML = h;
 }
 
+let currentAudio = null;
+let currentAudioBtn = null;
+
 async function playAudio(path, btn) {
+  // Same button, already playing → pause it (toggle).
+  if (currentAudioBtn === btn && currentAudio && !currentAudio.paused) {
+    currentAudio.pause();
+    btn.textContent = "▶ Play";
+    return;
+  }
+  // Same button, paused mid-way → resume without re-fetching.
+  if (currentAudioBtn === btn && currentAudio && currentAudio.paused && !currentAudio.ended) {
+    currentAudio.play();
+    btn.textContent = "⏸ Pause";
+    return;
+  }
+
+  // Anything else playing → stop it first so audio never overlaps.
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+  }
+  if (currentAudioBtn) {
+    currentAudioBtn.textContent = "▶ Play";
+  }
+
   btn.disabled = true;
   btn.textContent = "…";
   try {
@@ -634,8 +659,14 @@ async function playAudio(path, btn) {
     const data = await res.json();
     if (data.url) {
       const audio = new Audio(data.url);
+      currentAudio = audio;
+      currentAudioBtn = btn;
+      audio.addEventListener("ended", () => {
+        btn.textContent = "▶ Play";
+        if (currentAudio === audio) { currentAudio = null; currentAudioBtn = null; }
+      });
       audio.play();
-      btn.textContent = "▶ Play";
+      btn.textContent = "⏸ Pause";
     } else {
       btn.textContent = "✕";
     }
