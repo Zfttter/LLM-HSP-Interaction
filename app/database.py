@@ -108,6 +108,22 @@ def get_conversation(participant_id: str) -> list[dict]:
     return result.data or []
 
 
+def get_all_voice_turns(participant_id: str) -> list[dict]:
+    """All voice turns across all 3 topics, in the order they were played
+    (chronological). Used by the AI HSPS/MBTI prediction background tasks,
+    since the actual conversation transcript lives here, not in `conversations`
+    (that table is unused by the voice pipeline)."""
+    result = (
+        db()
+        .table("voice_turns")
+        .select("*")
+        .eq("participant_id", participant_id)
+        .order("created_at")
+        .execute()
+    )
+    return result.data or []
+
+
 def save_round(
     participant_id: str,
     round_number: int,

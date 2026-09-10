@@ -55,12 +55,18 @@ Replace XXXX with one of the 16 valid types (e.g., INFJ, ENFP, ISTP, etc.)."""
 
 # ── Message builders ──────────────────────────────────────────────────────────
 
-def _format_conversation(rounds: list[dict]) -> str:
+def _format_conversation(turns: list[dict]) -> str:
+    """Format all voice turns (across all 3 topics, chronological order) into
+    a readable transcript."""
     lines = []
-    for row in sorted(rounds, key=lambda r: r["round_number"]):
-        label = "Introduction" if row["round_number"] == 0 else f"Round {row['round_number']}"
-        lines.append(f"[{label} — Participant]: {row['user_message']}")
-        lines.append(f"[{label} — AI]: {row['ai_response']}")
+    for row in turns:
+        user_text = row.get("whisper_transcript") or ""
+        ai_text = row.get("llm_response_text") or ""
+        if not user_text and not ai_text:
+            continue
+        label = f"{row.get('topic') or '?'} turn {row.get('turn_number')}"
+        lines.append(f"[{label} — Participant]: {user_text}")
+        lines.append(f"[{label} — AI]: {ai_text}")
     return "\n\n".join(lines)
 
 
@@ -89,15 +95,26 @@ def _parse_mbti(raw: str) -> dict:
             inner = inner[4:]
         text = inner.strip()
 
-    parsed = json.loads(text)
+    try:
+        parsed = json.loads(text)
+        mbti_type = str(parsed.get("mbti_type", "")).strip().upper()
+        rationale = str(parsed.get("rationale", "")).strip()
+    except json.JSONDecodeError:
+        # Long "rationale" values sometimes get cut off mid-string when the
+        # model runs out of tokens — mbti_type appears first in the prompted
+        # field order, so pull it out directly rather than losing the whole
+        # response over an unterminated string later on.
+        match = re.search(r'"mbti_type"\s*:\s*"([A-Za-z\-\s]{2,10})"', text)
+        if not match:
+            raise
+        mbti_type = match.group(1).strip().upper()
+        rationale_match = re.search(r'"rationale"\s*:\s*"(.*)', text, re.DOTALL)
+        rationale = rationale_match.group(1).strip() if rationale_match else ""
 
-    mbti_type = str(parsed.get("mbti_type", "")).strip().upper()
     # Accept with or without hyphens / spaces, normalise to 4 letters
     mbti_type = re.sub(r"[^A-Z]", "", mbti_type)[:4]
     if mbti_type not in VALID_MBTI_TYPES:
         raise ValueError(f"Invalid MBTI type: {mbti_type!r}")
-
-    rationale = str(parsed.get("rationale", "")).strip()
 
     return {"mbti_type": mbti_type, "rationale": rationale}
 
@@ -120,7 +137,7 @@ async def run_mbti_prediction(participant_id: str) -> None:
 
         platform = participant.get("assigned_platform") or "gpt-4o"
 
-        rounds = await asyncio.to_thread(db_.get_conversation, participant_id)
+        rounds = await asyncio.to_thread(db_.get_all_voice_turns, participant_id)
         if not rounds:
             logger.warning(
                 f"[mbti_prediction] no conversation found for {participant_id}, skipping"
@@ -136,7 +153,9 @@ async def run_mbti_prediction(participant_id: str) -> None:
             platform,
             messages,
             MBTI_PREDICTION_SYSTEM_PROMPT,
-            200,  # short JSON reply
+            3000,  # generous headroom — reasoning models (e.g. gpt-oss-120b) spend
+                   # hundreds of tokens on hidden reasoning before the JSON reply,
+                   # and the free-text rationale can run long
         )
 
         result = _parse_mbti(raw_response)

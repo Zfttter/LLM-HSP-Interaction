@@ -70,13 +70,18 @@ HSPS_ITEMS_THIRD_PERSON = [
 
 # ── Message builders ──────────────────────────────────────────────────────────
 
-def _format_conversation(rounds: list[dict]) -> str:
-    """Format all conversation rounds into a readable transcript."""
+def _format_conversation(turns: list[dict]) -> str:
+    """Format all voice turns (across all 3 topics, chronological order) into
+    a readable transcript."""
     lines = []
-    for row in sorted(rounds, key=lambda r: r["round_number"]):
-        label = "Introduction" if row["round_number"] == 0 else f"Round {row['round_number']}"
-        lines.append(f"[{label} — Participant]: {row['user_message']}")
-        lines.append(f"[{label} — AI]: {row['ai_response']}")
+    for row in turns:
+        user_text = row.get("whisper_transcript") or ""
+        ai_text = row.get("llm_response_text") or ""
+        if not user_text and not ai_text:
+            continue
+        label = f"{row.get('topic') or '?'} turn {row.get('turn_number')}"
+        lines.append(f"[{label} — Participant]: {user_text}")
+        lines.append(f"[{label} — AI]: {ai_text}")
     return "\n\n".join(lines)
 
 
@@ -142,7 +147,7 @@ async def run_hsp_prediction(participant_id: str) -> None:
 
         platform = participant.get("assigned_platform") or "gpt-4o"
 
-        rounds = await asyncio.to_thread(db_.get_conversation, participant_id)
+        rounds = await asyncio.to_thread(db_.get_all_voice_turns, participant_id)
         if not rounds:
             logger.warning(
                 f"[hsp_prediction] no conversation found for {participant_id}, skipping"
@@ -158,7 +163,8 @@ async def run_hsp_prediction(participant_id: str) -> None:
             platform,
             messages,
             PREDICTION_SYSTEM_PROMPT,
-            300,  # short JSON reply — 18 key-value pairs
+            2000,  # generous headroom — reasoning models (e.g. gpt-oss-120b) spend
+                   # hundreds of tokens on hidden reasoning before the JSON reply
         )
 
         scores = _parse_scores(raw_response)
