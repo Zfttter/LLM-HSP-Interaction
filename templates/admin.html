@@ -678,16 +678,39 @@
       <div class="rq-section">
         <div class="rq-section-header">
           <div class="rq-section-title">RQ3 — How do HSP participants perceive the AI?</div>
-          <div class="rq-section-sub">Top row: perception ratings vs. self-reported HSPS, colored by platform. Bottom: trust trajectory across the 3 topics per participant (one line per person), colored by HSP tier (median split).</div>
-        </div>
-        <div class="charts-row">
-          <div class="chart-card"><div class="chart-title">HSPS vs. Satisfaction</div><div class="chart-canvas-wrap" style="height:220px"><canvas id="chart-rq3-sat"></canvas></div></div>
-          <div class="chart-card"><div class="chart-title">HSPS vs. Trust</div><div class="chart-canvas-wrap" style="height:220px"><canvas id="chart-rq3-trust-hsps"></canvas></div></div>
-          <div class="chart-card"><div class="chart-title">HSPS vs. Empathy</div><div class="chart-canvas-wrap" style="height:220px"><canvas id="chart-rq3-emp"></canvas></div></div>
+          <div class="rq-section-sub">
+            Same dot convention as RQ1: <b>each dot is one participant</b>, colored by platform, x-axis = self-reported
+            HSPS. Here the question is whether more sensitive people rate the AI differently — higher or lower
+            satisfaction/trust/empathy, more affected by a "wrong read" from the AI, or a different trust trajectory
+            over the 3 topics.
+          </div>
         </div>
         <div class="charts-row-2">
-          <div class="chart-card"><div class="chart-title">Trust across topics 1 → 2 → 3</div><canvas id="chart-rq3-trajectory" height="200"></canvas></div>
-          <div class="chart-card"><div class="chart-title">AI HSPS-prediction error vs. Satisfaction</div><canvas id="chart-rq3-error" height="200"></canvas></div>
+          <div class="chart-card">
+            <div class="chart-title">HSPS vs. Satisfaction</div>
+            <div class="chart-caption">Y-axis = average post-survey satisfaction rating (1–7) across the participant's 3 topics.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq3-sat"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">HSPS vs. Trust</div>
+            <div class="chart-caption">Y-axis = average post-survey trust rating (1–7) across the participant's 3 topics.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq3-trust-hsps"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">HSPS vs. Empathy</div>
+            <div class="chart-caption">Y-axis = average post-survey empathy rating (1–7) across the participant's 3 topics.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq3-emp"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">AI HSPS-prediction error vs. Satisfaction</div>
+            <div class="chart-caption">X-axis = |AI's guess at this person's HSPS score − their real self-reported score| (0 = AI read them perfectly). Y-axis = satisfaction. Does being "misread" by the AI track with lower satisfaction?</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq3-error"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-card" style="margin-bottom:16px">
+          <div class="chart-title">Trust across topics 1 → 2 → 3</div>
+          <div class="chart-caption">One line per participant, tracking their trust rating after each of the 3 topics in order. Red = above-median HSPS ("high" sensitivity in this sample), blue = below-median ("low"). Do high-HSPS participants start lower and/or shift more as the conversation continues?</div>
+          <div class="chart-canvas-wrap" style="height:320px"><canvas id="chart-rq3-trajectory"></canvas></div>
         </div>
         <div class="cond-table-wrap">
           <table>
@@ -1377,10 +1400,20 @@ function renderTrustTrajectory(canvasId, participants) {
     type: "line",
     data: { datasets },
     options: {
-      plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 9 } } } },
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: "top", labels: { boxWidth: 11, padding: 12, font: { size: 11 } } } },
+      elements: { point: { radius: 6, hoverRadius: 8, borderColor: "#fff", borderWidth: 1.5 } },
       scales: {
-        x: { type: "linear", min: 1, max: 3, ticks: { stepSize: 1 }, title: { display: true, text: "Topic order", font: { size: 10 } } },
-        y: { min: 1, max: 7, title: { display: true, text: "Trust (1–7)", font: { size: 10 } } },
+        x: {
+          type: "linear", min: 1, max: 3, ticks: { stepSize: 1, font: { size: 11 } },
+          title: { display: true, text: "Topic order (1st → 3rd topic)", font: { size: 12, weight: "600" } },
+          grid: { color: "#f1f5f9" },
+        },
+        y: {
+          min: 1, max: 7, ticks: { font: { size: 11 } },
+          title: { display: true, text: "Trust (1–7)", font: { size: 12, weight: "600" } },
+          grid: { color: "#f1f5f9" },
+        },
       },
     },
   });
@@ -1398,17 +1431,30 @@ function renderErrorVsSatisfaction(canvasId, participants) {
     label: platformLabel(plat),
     data: byPlatform[plat],
     backgroundColor: platformColor(plat),
-    pointRadius: 5,
+    pointRadius: 7,
+    pointHoverRadius: 9,
+    pointBorderColor: "#fff",
+    pointBorderWidth: 1.5,
   }));
   const ctx = document.getElementById(canvasId).getContext("2d");
   researchCharts[canvasId] = new Chart(ctx, {
     type: "scatter",
     data: { datasets },
     options: {
-      plugins: { legend: { display: datasets.length > 0, labels: { boxWidth: 10, font: { size: 10 } } } },
+      maintainAspectRatio: false,
+      plugins: { legend: { display: datasets.length > 0, position: "top", labels: { boxWidth: 11, padding: 12, font: { size: 12 } } } },
       scales: {
-        x: { title: { display: true, text: "|AI HSPS − Self HSPS|", font: { size: 10 } } },
-        y: { title: { display: true, text: "Satisfaction (1–7)", font: { size: 10 } }, min: 1, max: 7 },
+        x: {
+          title: { display: true, text: "|AI HSPS − Self HSPS|", font: { size: 12, weight: "600" } },
+          ticks: { font: { size: 11 } },
+          grid: { color: "#f1f5f9" },
+        },
+        y: {
+          title: { display: true, text: "Satisfaction (1–7)", font: { size: 12, weight: "600" } },
+          min: 1, max: 7,
+          ticks: { font: { size: 11 } },
+          grid: { color: "#f1f5f9" },
+        },
       },
     },
   });
