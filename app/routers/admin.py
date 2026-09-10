@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from app.config import settings
 import app.database as db_
 import app.llm as llm_
+import app.analysis as analysis_
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -208,6 +209,22 @@ def api_participant_detail(request: Request, participant_id: str):
         "tts_voice":        tts_voice,
         "turns_completed":  len(voice_turns),
     })
+
+
+@router.get("/admin/api/research")
+def api_research(request: Request):
+    """RQ1/RQ2/RQ3-oriented feature aggregation for the admin Research tab.
+    See app/analysis.py docstring — exploratory stand-ins, not the licensed
+    LIWC/eGeMAPS pipeline. Access: GET /admin/api/research?key=<ADMIN_KEY>"""
+    key = request.query_params.get("key") or request.headers.get("X-Admin-Key")
+    if not _check_key(key):
+        return _FORBIDDEN
+    try:
+        return JSONResponse(analysis_.build_research_dataset())
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(exc)}, status_code=500)
 
 
 @router.get("/admin/api/system-check")

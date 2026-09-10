@@ -235,3 +235,10 @@ def check_all_providers() -> dict:
             name, result = future.result()
             results[name] = result
     return results
+
+
+def get_embedding(text: str) -> list[float]:
+    """Text embedding via OpenAI, used for the admin Research tab's semantic
+    similarity ("attunement") measure — not part of the participant flow."""
+    response = _openai().embeddings.create(model="text-embedding-3-small", input=text[:8000])
+    return response.data[0].embedding
