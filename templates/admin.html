@@ -638,13 +638,33 @@
       <div class="rq-section">
         <div class="rq-section-header">
           <div class="rq-section-title">RQ2 — Does differentiation vary by platform?</div>
-          <div class="rq-section-sub">Bars = mean per platform across its assigned participants. Accommodation = function-word similarity (AI vs. participant turn); Attunement = semantic embedding similarity of AI reply to the participant's turn; Follow-up rate = share of AI turns containing a question.</div>
+          <div class="rq-section-sub">
+            Every bar below: <b>each bar is one AI platform</b>, averaged across all the participants who were
+            assigned to it. There's no HSPS axis here — this section asks a different question than RQ1: not
+            "does HSPS predict behavior," but "do the 6 platforms behave differently from each other, full stop."
+          </div>
         </div>
-        <div class="charts-row-4">
-          <div class="chart-card"><div class="chart-title">Accommodation (function-word sim.)</div><canvas id="chart-rq2-accom" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">Attunement (semantic sim.)</div><canvas id="chart-rq2-attun" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">Follow-up question rate</div><canvas id="chart-rq2-followup" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">Avg AI response length (chars)</div><canvas id="chart-rq2-len" height="160"></canvas></div>
+        <div class="charts-row-2">
+          <div class="chart-card">
+            <div class="chart-title">Accommodation — does the AI mirror the participant's speaking style?</div>
+            <div class="chart-caption">0–1 scale: how similar the AI's function-word usage (pronouns, prepositions, etc.) is to the participant's own, turn by turn. Higher = the AI's phrasing style leans more toward matching the participant.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq2-accom"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Attunement — does the AI's reply stay on-topic?</div>
+            <div class="chart-caption">0–1 scale: semantic (embedding) similarity between what the participant just said and the AI's reply. Higher = the AI's response is more specifically tied to that turn's content, vs. a generic response.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq2-attun"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Follow-up question rate</div>
+            <div class="chart-caption">Share of the AI's turns that end with a question mark. Higher = the platform tends to keep probing/asking; lower = it tends to just reflect back and let the participant lead.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq2-followup"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Average AI response length</div>
+            <div class="chart-caption">Average character count of the AI's replies. Longer replies aren't automatically "better" — just a raw style difference worth knowing about between platforms.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq2-len"></canvas></div>
+          </div>
         </div>
         <div class="cond-table-wrap">
           <table>
@@ -1283,35 +1303,42 @@ function renderHspsScatter(canvasId, participants, yKey, yLabel) {
 }
 
 // Bar chart of one metric aggregated per platform.
-const PLATFORM_TINY = {
-  "gpt-4o":                  "4o",
-  "grok-4":                  "Grok4",
-  "claude-sonnet-4-6":       "Claude",
-  "gemini-2.5-flash":        "Gemini",
-  "deepseek-chat":           "DeepSeek",
-  "openai/gpt-oss-120b":     "OSS120B",
-  "unknown":                 "Unk.",
-};
-
-function renderPlatformBar(canvasId, platforms, metricKey) {
+function renderPlatformBar(canvasId, platforms, metricKey, yLabel) {
   destroyChart(canvasId);
   const plats = Object.keys(platforms);
   const ctx = document.getElementById(canvasId).getContext("2d");
   researchCharts[canvasId] = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: plats.map(p => PLATFORM_TINY[p] || p),
+      labels: plats.map(platformLabel),
       datasets: [{
         data: plats.map(p => platforms[p][metricKey]),
         backgroundColor: plats.map(platformColor),
-        borderRadius: 4,
+        borderRadius: 5,
+        maxBarThickness: 70,
       }],
     },
     options: {
-      plugins: { legend: { display: false } },
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.parsed.y != null ? ctx.parsed.y.toFixed(3) : "—"} (n=${platforms[plats[ctx.dataIndex]].n})`,
+          },
+        },
+      },
       scales: {
-        y: { beginAtZero: true },
-        x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45, font: { size: 9 } } },
+        y: {
+          beginAtZero: true,
+          title: yLabel ? { display: true, text: yLabel, font: { size: 12, weight: "600" } } : undefined,
+          ticks: { font: { size: 11 } },
+          grid: { color: "#f1f5f9" },
+        },
+        x: {
+          ticks: { autoSkip: false, font: { size: 12, weight: "600" }, color: "#1e293b" },
+          grid: { display: false },
+        },
       },
     },
   });
@@ -1402,10 +1429,10 @@ function renderResearch(data) {
   renderHspsScatter("chart-rq1-neg", data.participants, "negemo_ratio", "% of words");
   renderHspsScatter("chart-rq1-tent", data.participants, "tentative_ratio", "% of words");
 
-  renderPlatformBar("chart-rq2-accom", data.platforms, "accommodation");
-  renderPlatformBar("chart-rq2-attun", data.platforms, "attunement");
-  renderPlatformBar("chart-rq2-followup", data.platforms, "followup_rate");
-  renderPlatformBar("chart-rq2-len", data.platforms, "ai_response_len");
+  renderPlatformBar("chart-rq2-accom", data.platforms, "accommodation", "Similarity (0–1)");
+  renderPlatformBar("chart-rq2-attun", data.platforms, "attunement", "Similarity (0–1)");
+  renderPlatformBar("chart-rq2-followup", data.platforms, "followup_rate", "Share of turns (0–1)");
+  renderPlatformBar("chart-rq2-len", data.platforms, "ai_response_len", "Characters");
 
   const plat_tbody = document.getElementById("rq2-platform-tbody");
   plat_tbody.innerHTML = Object.keys(data.platforms).map(p => {
