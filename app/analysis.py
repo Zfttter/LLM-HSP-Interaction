@@ -313,3 +313,80 @@ def build_research_dataset() -> dict:
         "turns_used":   len(pairs),
         "turns_total":  len(voice_turns),
     }
+
+
+# ── Pre-survey factors by HSP tier (Overview tab) ─────────────────────────────
+# Screening-survey fields, split by a median HSPS cut into "low"/"high" tiers,
+# to eyeball whether any of them tracks HSP rather than being evenly spread —
+# a quick confound check, not a substitute for actually modeling covariates.
+
+_ORDERED_CATEGORIES = {
+    "ai_usage_frequency":     ["never", "rarely", "sometimes", "often", "very_often"],
+    "financial_worry":       ["never", "rarely", "sometimes", "often", "always"],
+    "education":             ["no_formal", "primary", "secondary", "vocational",
+                               "bachelors", "masters", "doctorate"],
+    "mental_health_screening": ["no", "yes"],
+    "native_english":        [True, False],
+}
+
+_CATEGORICAL_FIELDS = [
+    "gender", "native_english", "ai_usage_frequency",
+    "financial_worry", "education", "mental_health_screening", "race",
+]
+
+
+def build_presurvey_dataset() -> dict:
+    """All participants who completed the screening survey (hsps_score not
+    null), regardless of later exclusion/completion — this checks the
+    screening pool itself, not just people who finished the study."""
+    participants = (
+        db_.db().table("participants")
+        .select("id, hsps_score, age, gender, native_english, ai_usage_frequency, "
+                "financial_worry, education, mental_health_screening, race")
+        .execute().data or []
+    )
+    participants = [p for p in participants if p.get("hsps_score") is not None]
+    if not participants:
+        return {"n": 0}
+
+    scores = sorted(p["hsps_score"] for p in participants)
+    mid = len(scores) // 2
+    median_hsps = scores[mid] if len(scores) % 2 else (scores[mid - 1] + scores[mid]) / 2
+
+    def tier(p):
+        return "high" if p["hsps_score"] >= median_hsps else "low"
+
+    low = [p for p in participants if tier(p) == "low"]
+    high = [p for p in participants if tier(p) == "high"]
+
+    age = {
+        "low":  [p["age"] for p in low if p.get("age") is not None],
+        "high": [p["age"] for p in high if p.get("age") is not None],
+    }
+
+    fields = {}
+    for field in _CATEGORICAL_FIELDS:
+        cats_seen = {p[field] for p in participants if p.get(field) is not None}
+        order = _ORDERED_CATEGORIES.get(field)
+        categories = order if order else sorted(cats_seen, key=str)
+        categories = [c for c in categories if c in cats_seen]
+
+        def pct_by_category(group):
+            total = sum(1 for p in group if p.get(field) is not None)
+            counts = Counter(p[field] for p in group if p.get(field) is not None)
+            return [round(100 * counts.get(c, 0) / total, 1) if total else 0 for c in categories]
+
+        fields[field] = {
+            "categories": [str(c) for c in categories],
+            "low_pct":    pct_by_category(low),
+            "high_pct":   pct_by_category(high),
+        }
+
+    return {
+        "n": len(participants),
+        "n_low": len(low),
+        "n_high": len(high),
+        "median_hsps": round(median_hsps, 2),
+        "age": age,
+        "fields": fields,
+    }

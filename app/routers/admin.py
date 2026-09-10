@@ -229,6 +229,22 @@ def api_research(request: Request):
         return JSONResponse({"error": str(exc)}, status_code=500)
 
 
+@router.get("/admin/api/presurvey-factors")
+def api_presurvey_factors(request: Request):
+    """Screening-survey fields (age, gender, financial worry, etc.) split by
+    HSP tier (median split), for the Overview tab's confound-check section.
+    Access: GET /admin/api/presurvey-factors?key=<ADMIN_KEY>"""
+    key = request.query_params.get("key") or request.headers.get("X-Admin-Key")
+    if not _check_key(key):
+        return _FORBIDDEN
+    try:
+        return JSONResponse(analysis_.build_presurvey_dataset())
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
 @router.get("/admin/api/system-check")
 def api_system_check(request: Request):
     """Pings all 6 LLM providers (1-token requests) plus Supabase DB/storage.

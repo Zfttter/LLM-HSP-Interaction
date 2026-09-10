@@ -579,6 +579,22 @@
           <tbody id="conditions-tbody"></tbody>
         </table>
       </div>
+
+      <div class="rq-section" style="margin-top:28px">
+        <div class="rq-section-header">
+          <div class="rq-section-title">Pre-Survey Factors by HSP Tier</div>
+          <div class="rq-section-sub" id="presurvey-sub">
+            Everyone who completed the screening survey is split into "Low HSP" / "High HSP" by a median cut on
+            HSPS score (below vs. at-or-above the median). Each chart below compares the two groups on a
+            screening-survey field <b>that has nothing to do with sensitivity</b> — age, gender, financial worry,
+            etc. This is a confound check: if a bar shape looks very different between Low and High, that field
+            might be riding along with HSPS in this sample rather than being evenly spread, which matters when
+            interpreting any HSPS effect later.
+          </div>
+        </div>
+        <div class="rq-caveat" id="presurvey-caveat" style="margin-bottom:16px"></div>
+        <div class="charts-row-2" id="presurvey-charts"></div>
+      </div>
     </div>
   </div>
 
@@ -789,7 +805,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function loadAll() {
-  await Promise.all([loadParticipants(), loadOverview(), loadResearch()]);
+  await Promise.all([loadParticipants(), loadOverview(), loadResearch(), loadPresurveyFactors()]);
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
@@ -835,6 +851,134 @@ async function loadOverview() {
   } catch(e) {
     document.getElementById("overview-loading").innerHTML = `<div class="error-msg">Error loading overview: ${e.message}</div>`;
   }
+}
+
+// ── Pre-survey factors by HSP tier ────────────────────────────────────────────
+const FIELD_LABELS = {
+  gender: "Gender",
+  native_english: "Native English speaker",
+  ai_usage_frequency: "AI usage frequency",
+  financial_worry: "Financial worry",
+  education: "Highest education",
+  mental_health_screening: "Mental health screening flag",
+  race: "Race/ethnicity",
+};
+const CATEGORY_LABELS = {
+  "true": "Yes", "false": "No",
+  no_formal: "No formal", primary: "Primary", secondary: "Secondary",
+  vocational: "Vocational", bachelors: "Bachelor's", masters: "Master's", doctorate: "Doctorate",
+  very_often: "Very often", non_binary: "Non-binary", prefer_not_to_say: "Prefer not to say",
+};
+function categoryLabel(c) { return CATEGORY_LABELS[c] ?? (c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, " ")); }
+
+async function loadPresurveyFactors() {
+  try {
+    const res = await fetch(`/admin/api/presurvey-factors?key=${encodeURIComponent(ADMIN_KEY)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderPresurveyFactors(data);
+  } catch (e) {
+    document.getElementById("presurvey-charts").innerHTML = `<div class="error-msg">Error loading pre-survey factors: ${e.message}</div>`;
+  }
+}
+
+function mean(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
+
+function renderPresurveyFactors(data) {
+  if (!data.n) {
+    document.getElementById("presurvey-charts").innerHTML = `<p style="color:#94a3b8">No screening-survey data yet.</p>`;
+    return;
+  }
+  document.getElementById("presurvey-caveat").innerHTML =
+    `Split: <b>${data.n_low}</b> Low HSP / <b>${data.n_high}</b> High HSP (median HSPS = ${data.median_hsps}), N = ${data.n} total. Small groups — a lopsided bar could easily be 1-2 people, not a real pattern.`;
+
+  const container = document.getElementById("presurvey-charts");
+  const cardIds = ["presurvey-chart-age", ...Object.keys(data.fields).map(f => `presurvey-chart-${f}`)];
+  container.innerHTML = `
+    <div class="chart-card">
+      <div class="chart-title">Age</div>
+      <div class="chart-caption">Mean age per tier. Hover a bar for the actual age range and group size.</div>
+      <div class="chart-canvas-wrap"><canvas id="presurvey-chart-age"></canvas></div>
+    </div>
+    ${Object.keys(data.fields).map(field => `
+      <div class="chart-card">
+        <div class="chart-title">${FIELD_LABELS[field] || field}</div>
+        <div class="chart-caption">% of each tier in each category (not raw counts, since the two tiers aren't the same size).</div>
+        <div class="chart-canvas-wrap"><canvas id="presurvey-chart-${field}"></canvas></div>
+      </div>
+    `).join("")}
+  `;
+
+  renderAgeComparison("presurvey-chart-age", data.age);
+  Object.keys(data.fields).forEach(field => {
+    renderCategoricalGroupedBar(`presurvey-chart-${field}`, data.fields[field]);
+  });
+}
+
+function renderAgeComparison(canvasId, ageData) {
+  destroyChart(canvasId);
+  const meanLow = mean(ageData.low);
+  const meanHigh = mean(ageData.high);
+
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  researchCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Low HSP", "High HSP"],
+      datasets: [{
+        label: "Mean age",
+        data: [meanLow, meanHigh],
+        backgroundColor: ["#3b82f6", "#dc2626"],
+        borderRadius: 5,
+        maxBarThickness: 90,
+      }],
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const ages = ctx.dataIndex === 0 ? ageData.low : ageData.high;
+              return `Mean ${ctx.parsed.y.toFixed(1)} yrs (range ${Math.min(...ages)}–${Math.max(...ages)}, n=${ages.length})`;
+            },
+          },
+        },
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: "Mean age (years)", font: { size: 12, weight: "600" } }, grid: { color: "#f1f5f9" } },
+        x: { ticks: { font: { size: 12, weight: "600" } }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+function renderCategoricalGroupedBar(canvasId, fieldData) {
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  researchCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: fieldData.categories.map(categoryLabel),
+      datasets: [
+        { label: "Low HSP", data: fieldData.low_pct, backgroundColor: "#3b82f6", borderRadius: 4 },
+        { label: "High HSP", data: fieldData.high_pct, backgroundColor: "#dc2626", borderRadius: 4 },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: "top", labels: { boxWidth: 11, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` } },
+      },
+      scales: {
+        y: { beginAtZero: true, max: 100, title: { display: true, text: "% of tier", font: { size: 12, weight: "600" } }, grid: { color: "#f1f5f9" } },
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+      },
+    },
+  });
 }
 
 // ── Participant table logic ────────────────────────────────────────────────────
