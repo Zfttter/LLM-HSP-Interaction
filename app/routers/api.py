@@ -502,7 +502,14 @@ async def process_turn(request: Request):
     history.append({"role": "user", "content": submitted})
 
     system_prompt = build_system_prompt(current_ai, current_topic, turn_number)
-    ai_text, response_time_ms = call_llm(platform, history, system_prompt)
+    try:
+        ai_text, response_time_ms = call_llm(platform, history, system_prompt)
+    except Exception as exc:
+        # A transient provider/network failure here would otherwise bubble up as
+        # a raw 500 page, which the frontend can't JSON-parse — surface a clean
+        # error instead so the participant sees "please try again", not garbage.
+        print(f"[TURN] call_llm failed for platform={platform}: {exc}")
+        return JSONResponse({"ok": False, "error": "The AI didn't respond — please try again."}, status_code=500)
     history.append({"role": "assistant", "content": ai_text})
 
     request.session["turn_number"] = turn_number
@@ -510,7 +517,11 @@ async def process_turn(request: Request):
     is_final = turn_number >= MAX_TURNS   # = end of THIS topic's chat
 
     tts_voice = request.session.get("tts_voice", "nova")
-    tts_b64   = text_to_speech(ai_text, tts_voice)
+    try:
+        tts_b64 = text_to_speech(ai_text, tts_voice)
+    except Exception as exc:
+        print(f"[TURN] text_to_speech failed: {exc}")
+        return JSONResponse({"ok": False, "error": "Voice playback failed — please try again."}, status_code=500)
 
     db_.save_voice_turn({
         "participant_id":         participant_id,
