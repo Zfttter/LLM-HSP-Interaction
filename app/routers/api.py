@@ -395,10 +395,13 @@ async def transcribe_turn(request: Request, audio: UploadFile = File(...)):
     # Prefer values cached in session (set by /chat route); fall back to DB only if missing.
     topics_completed = request.session.get("cached_topics_completed")
     topic_order      = request.session.get("cached_topic_order")
-    if topics_completed is None or topic_order is None:
+    folder_label     = request.session.get("cached_display_id")
+    if topics_completed is None or topic_order is None or folder_label is None:
         participant = db_.get_participant_by_id(participant_id)
         topics_completed = (participant or {}).get("topics_completed", 0) or 0
         topic_order      = (participant or {}).get("assigned_topic_order", "ABC")
+        folder_label     = (participant or {}).get("display_id")
+        request.session["cached_display_id"] = folder_label
     current_topic = current_topic_for_participant(topic_order, topics_completed)
 
     # Atomically reserve this take's attempt number — same turn re-recorded
@@ -406,7 +409,8 @@ async def transcribe_turn(request: Request, audio: UploadFile = File(...)):
     attempt_number = db_.next_voice_attempt_number(session_id, turn_number)
 
     audio_url  = db_.upload_audio(
-        participant_id, session_id, turn_number, attempt_number, audio_bytes, topic=current_topic,
+        participant_id, session_id, turn_number, attempt_number, audio_bytes,
+        topic=current_topic, folder_label=folder_label,
     )
     transcript = transcribe_audio(audio_bytes)
 

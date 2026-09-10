@@ -413,3 +413,11 @@ ALTER TABLE voice_turns ADD COLUMN IF NOT EXISTS draft_revision_count INT NOT NU
 UPDATE condition_counts
 SET platform = 'openai/gpt-oss-120b'
 WHERE platform = 'llama-3.3-70b-versatile';
+
+
+-- ── Migration: human-readable display_id (run once) ──────────────────────────
+-- Storage folders and admin listings used the raw participant UUID, which is
+-- painful to browse. display_id is a "MMDD-NN" label (date + per-day sequence
+-- number), assigned once at participant creation and used as the Storage
+-- folder name going forward instead of the UUID.
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS display_id TEXT UNIQUE;

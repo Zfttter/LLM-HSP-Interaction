@@ -38,9 +38,42 @@ def get_participant_by_id(participant_id: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
+def _generate_display_id() -> Optional[str]:
+    """'MMDD-NN' label — date + per-day sequence number, used as the Storage
+    folder name instead of the raw participant UUID. Best-effort: a race
+    between two signups in the same instant could collide (UNIQUE constraint),
+    in which case the caller just falls back to the UUID for that participant."""
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc)
+    date_key = today.strftime("%m%d")
+    start_of_day = today.strftime("%Y-%m-%dT00:00:00+00:00")
+    try:
+        result = (
+            db().table("participants")
+            .select("id", count="exact")
+            .gte("created_at", start_of_day)
+            .execute()
+        )
+        seq = (result.count or 0) + 1
+        return f"{date_key}-{seq:02d}"
+    except Exception as exc:
+        print(f"[DB] display_id generation failed: {exc}")
+        return None
+
+
 def create_participant(prolific_id: str) -> dict:
     result = db().table("participants").insert({"prolific_id": prolific_id}).execute()
-    return result.data[0]
+    participant = result.data[0]
+
+    display_id = _generate_display_id()
+    if display_id:
+        try:
+            updated = update_participant(participant["id"], {"display_id": display_id})
+            participant["display_id"] = updated.get("display_id")
+        except Exception as exc:
+            print(f"[DB] failed to set display_id for {participant['id']}: {exc}")
+
+    return participant
 
 
 def get_or_create_participant(prolific_id: str) -> dict:
@@ -223,17 +256,21 @@ def get_voice_turn_attempts(session_id: str, turn_number: int) -> list[dict]:
 
 
 def upload_audio(participant_id: str, session_id: str, turn_number: int,
-                 attempt_number: int, audio_bytes: bytes, topic: Optional[str] = None) -> str:
+                 attempt_number: int, audio_bytes: bytes, topic: Optional[str] = None,
+                 folder_label: Optional[str] = None) -> str:
     """Upload WebM audio to Supabase Storage (private bucket).
-    Path layout: {participant_id}/{topic}/{session_id}_{turn_number}_{attempt_number}_audio.webm
-    Falls back to {participant_id}/ for legacy callers that don't pass a topic.
+    Path layout: {folder_label}/{topic}/{session_id}_{turn_number}_{attempt_number}_audio.webm
+    folder_label is the participant's human-readable display_id ("MMDD-NN");
+    falls back to the raw participant_id if the caller doesn't have one yet.
+    Falls back to no {topic}/ level for legacy callers that don't pass a topic.
     Different attempts get different paths, so re-recording never overwrites a prior take.
     Returns the file path or empty string on failure.
     """
+    folder = folder_label or participant_id
     if topic:
-        path = f"{participant_id}/{topic}/{session_id}_{turn_number}_{attempt_number}_audio.webm"
+        path = f"{folder}/{topic}/{session_id}_{turn_number}_{attempt_number}_audio.webm"
     else:
-        path = f"{participant_id}/{session_id}_{turn_number}_{attempt_number}_audio.webm"
+        path = f"{folder}/{session_id}_{turn_number}_{attempt_number}_audio.webm"
     try:
         db().storage.from_(_BUCKET).upload(
             path=path,
