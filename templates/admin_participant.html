@@ -554,8 +554,19 @@ function renderRight(p) {
   const plat  = PLATFORM_SHORT[p.assigned_platform] || p.assigned_platform || "?";
   const topic = TOPIC_SHORT[p.assigned_topic_order] || p.assigned_topic_order || "?";
 
+  let totalWords = 0;
+  let totalRecordingMs = 0;
+  turns.forEach(t => {
+    const submitted = t.whisper_transcript || "";
+    if (submitted.trim()) totalWords += countWords(submitted);
+    if (t.record_started_at && t.record_ended_at) {
+      totalRecordingMs += new Date(t.record_ended_at) - new Date(t.record_started_at);
+    }
+  });
+
   let h = `<div style="font-size:11px;color:#94a3b8;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
     Voice Turns &nbsp;·&nbsp; ${turns.length} turns &nbsp;·&nbsp; ${esc(plat)} &nbsp;·&nbsp; ${esc(topic)} &nbsp;·&nbsp; ${esc(voiceLabel)}
+    &nbsp;·&nbsp; ${totalWords} total words &nbsp;·&nbsp; ${formatDuration(totalRecordingMs)} total recording time
   </div>`;
 
   turns.forEach(turn => {
@@ -665,6 +676,15 @@ function fmtDate(s) {
 function countWords(text) {
   if (!text) return 0;
   return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+// Total recording time = sum of (record_ended_at - record_started_at) across turns.
+function formatDuration(ms) {
+  if (!ms || ms <= 0) return "—";
+  const totalSec = Math.round(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 // Levenshtein edit distance — used to flag how heavily a participant edited the raw Whisper text.
