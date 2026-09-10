@@ -377,6 +377,13 @@
     letter-spacing: 0.5px;
     margin-bottom: 12px;
   }
+  .chart-caption {
+    font-size: 11.5px;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin: -6px 0 12px;
+  }
+  .chart-canvas-wrap { position: relative; height: 280px; }
 
   .cond-table-wrap {
     background: #fff;
@@ -591,13 +598,39 @@
       <div class="rq-section">
         <div class="rq-section-header">
           <div class="rq-section-title">RQ1 — Does input differ by sensitivity (HSPS)?</div>
-          <div class="rq-section-sub">Each dot = one participant (mean across their turns), colored by platform. X-axis = self-reported HSPS (1–7). Timing measures are exact behavioral-log data.</div>
+          <div class="rq-section-sub">
+            Every chart below: <b>each dot is one participant</b> (their average across all turns), placed left-to-right
+            by their self-reported HSPS score (1 = low sensitivity, 7 = high). Color = which AI platform they talked to
+            (see legend on each chart). There's no line/curve drawn — you're just looking for whether dots trend
+            upward or downward as HSPS increases. With this few participants (see N above), don't read too much into any single pattern yet.
+          </div>
         </div>
-        <div class="charts-row-4">
-          <div class="chart-card"><div class="chart-title">1st-person singular %</div><canvas id="chart-rq1-fp" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">Negative-emotion word %</div><canvas id="chart-rq1-neg" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">Tentative word %</div><canvas id="chart-rq1-tent" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">Hesitation before responding (ms)</div><canvas id="chart-rq1-hes" height="160"></canvas></div>
+        <div class="charts-row-2">
+          <div class="chart-card">
+            <div class="chart-title">Total words spoken (sum across all 18 turns)</div>
+            <div class="chart-caption">Y-axis = total word count for that participant's whole session. Are high-HSPS participants more or less talkative overall?</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq1-totalwords"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Hesitation before responding</div>
+            <div class="chart-caption">Y-axis = milliseconds between the AI finishing its reply and the participant starting to record. Longer = more time spent thinking before answering.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq1-hes"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">1st-person singular pronoun usage</div>
+            <div class="chart-caption">Y-axis = % of the participant's words that are "I / me / my / mine / myself". Higher = more self-focused language.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq1-fp"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Negative-emotion word usage</div>
+            <div class="chart-caption">Y-axis = % of words matching a small negative-emotion word list (sad, afraid, hate, ...). Higher = more negative emotional language.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq1-neg"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Tentative-word usage</div>
+            <div class="chart-caption">Y-axis = % of words that hedge (maybe, perhaps, I think, sort of, ...). Higher = more cautious/uncertain phrasing.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq1-tent"></canvas></div>
+          </div>
         </div>
       </div>
 
@@ -628,9 +661,9 @@
           <div class="rq-section-sub">Top row: perception ratings vs. self-reported HSPS, colored by platform. Bottom: trust trajectory across the 3 topics per participant (one line per person), colored by HSP tier (median split).</div>
         </div>
         <div class="charts-row">
-          <div class="chart-card"><div class="chart-title">HSPS vs. Satisfaction</div><canvas id="chart-rq3-sat" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">HSPS vs. Trust</div><canvas id="chart-rq3-trust-hsps" height="160"></canvas></div>
-          <div class="chart-card"><div class="chart-title">HSPS vs. Empathy</div><canvas id="chart-rq3-emp" height="160"></canvas></div>
+          <div class="chart-card"><div class="chart-title">HSPS vs. Satisfaction</div><div class="chart-canvas-wrap" style="height:220px"><canvas id="chart-rq3-sat"></canvas></div></div>
+          <div class="chart-card"><div class="chart-title">HSPS vs. Trust</div><div class="chart-canvas-wrap" style="height:220px"><canvas id="chart-rq3-trust-hsps"></canvas></div></div>
+          <div class="chart-card"><div class="chart-title">HSPS vs. Empathy</div><div class="chart-canvas-wrap" style="height:220px"><canvas id="chart-rq3-emp"></canvas></div></div>
         </div>
         <div class="charts-row-2">
           <div class="chart-card"><div class="chart-title">Trust across topics 1 → 2 → 3</div><canvas id="chart-rq3-trajectory" height="200"></canvas></div>
@@ -1218,17 +1251,32 @@ function renderHspsScatter(canvasId, participants, yKey, yLabel) {
     label: platformLabel(plat),
     data: byPlatform[plat],
     backgroundColor: platformColor(plat),
-    pointRadius: 5,
+    pointRadius: 7,
+    pointHoverRadius: 9,
+    pointBorderColor: "#fff",
+    pointBorderWidth: 1.5,
   }));
   const ctx = document.getElementById(canvasId).getContext("2d");
   researchCharts[canvasId] = new Chart(ctx, {
     type: "scatter",
     data: { datasets },
     options: {
-      plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } } },
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: "top", labels: { boxWidth: 11, padding: 12, font: { size: 12 } } },
+      },
       scales: {
-        x: { title: { display: true, text: "Self-reported HSPS", font: { size: 10 } }, min: 1, max: 7 },
-        y: { title: { display: true, text: yLabel, font: { size: 10 } } },
+        x: {
+          title: { display: true, text: "Self-reported HSPS (1–7)", font: { size: 12, weight: "600" } },
+          min: 1, max: 7,
+          ticks: { font: { size: 11 } },
+          grid: { color: "#f1f5f9" },
+        },
+        y: {
+          title: { display: true, text: yLabel, font: { size: 12, weight: "600" } },
+          ticks: { font: { size: 11 } },
+          grid: { color: "#f1f5f9" },
+        },
       },
     },
   });
@@ -1348,10 +1396,11 @@ function fmtNum(v, digits = 2) { return v == null ? "—" : v.toFixed(digits); }
 function renderResearch(data) {
   document.getElementById("rq-n").textContent = data.participants.length;
 
+  renderHspsScatter("chart-rq1-totalwords", data.participants, "total_words", "Total words");
+  renderHspsScatter("chart-rq1-hes", data.participants, "hesitation_ms", "Hesitation (ms)");
   renderHspsScatter("chart-rq1-fp",  data.participants, "first_person_ratio", "% of words");
   renderHspsScatter("chart-rq1-neg", data.participants, "negemo_ratio", "% of words");
   renderHspsScatter("chart-rq1-tent", data.participants, "tentative_ratio", "% of words");
-  renderHspsScatter("chart-rq1-hes", data.participants, "hesitation_ms", "ms");
 
   renderPlatformBar("chart-rq2-accom", data.platforms, "accommodation");
   renderPlatformBar("chart-rq2-attun", data.platforms, "attunement");

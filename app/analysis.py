@@ -201,6 +201,7 @@ def build_research_dataset() -> dict:
         per_participant_turns[pid].append({
             "topic":              vt.get("topic"),
             "turn_number":        vt.get("turn_number"),
+            "word_count":         len(_tokenize(txt_p)),
             "first_person_ratio": word_ratio(txt_p, FIRST_PERSON_SINGULAR),
             "negemo_ratio":       word_ratio(txt_p, NEGEMO_WORDS),
             "tentative_ratio":    word_ratio(txt_p, TENTATIVE_WORDS),
@@ -250,6 +251,7 @@ def build_research_dataset() -> dict:
                 p.get("self_mbti")[:1] == p.get("ai_mbti_type", "")[:1]
                 if p.get("self_mbti") and p.get("ai_mbti_type") else None
             ),
+            "total_words":        sum(t["word_count"] for t in turns) if turns else None,
             "first_person_ratio": _mean([t["first_person_ratio"] for t in turns]),
             "negemo_ratio":       _mean([t["negemo_ratio"] for t in turns]),
             "tentative_ratio":    _mean([t["tentative_ratio"] for t in turns]),
