@@ -580,7 +580,13 @@ function renderRight(p) {
 
     const wc = submitted.trim() ? countWords(submitted) : 0;
     const shortWarn = wc > 0 && wc < 10;
-    const wcText = wc ? `${wc} word${wc !== 1 ? "s" : ""}` : "no transcript";
+    const recordingMs = (turn.record_started_at && turn.record_ended_at)
+      ? new Date(turn.record_ended_at) - new Date(turn.record_started_at)
+      : null;
+    const durationText = recordingMs != null ? formatDuration(recordingMs) : null;
+    const wcText = wc
+      ? `${wc} word${wc !== 1 ? "s" : ""}${durationText ? ` · ${durationText}` : ""}`
+      : "no transcript";
 
     const rt = turn.response_time_ms ? `${(turn.response_time_ms / 1000).toFixed(1)}s` : "";
 
