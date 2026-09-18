@@ -661,6 +661,16 @@ function renderRight(p) {
          </div>`
       : "";
 
+    // Private scratchpad — persists across turns within a topic, so its content
+    // often reflects earlier turns too, not just this one. Shown whenever the
+    // participant had typed something in it by the time they submitted this turn.
+    const draftText = turn.draft_final_text || "";
+    const draftBlock = draftText.trim()
+      ? `<div class="conv-text" style="margin-top:6px;padding:6px 9px;background:#eef2ff;border-left:3px solid #6366f1;font-size:11.5px;color:#3730a3">
+           <strong style="color:#4338ca;font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px">Scratchpad at submit time (${turn.draft_char_count || 0} chars, ${turn.draft_revision_count || 0} revisions):</strong><br>${esc(draftText)}
+         </div>`
+      : "";
+
     h += `<div class="conv-round">
       <div class="conv-round-header">
         ${esc(label)}
@@ -675,6 +685,7 @@ function renderRight(p) {
         </div>
         <div class="conv-text">${submitted ? esc(submitted) : '<em style="color:#94a3b8">No transcript recorded</em>'}</div>
         ${rawBlock}
+        ${draftBlock}
       </div>
       <div class="conv-turn turn-ai">
         <div class="conv-speaker spk-ai">
