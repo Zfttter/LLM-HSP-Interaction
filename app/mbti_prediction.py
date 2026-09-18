@@ -153,9 +153,10 @@ async def run_mbti_prediction(participant_id: str) -> None:
             platform,
             messages,
             MBTI_PREDICTION_SYSTEM_PROMPT,
-            3000,  # generous headroom — reasoning models (e.g. gpt-oss-120b) spend
-                   # hundreds of tokens on hidden reasoning before the JSON reply,
-                   # and the free-text rationale can run long
+            6000,  # generous headroom — reasoning models (e.g. gpt-oss-120b, and
+                   # Gemini 2.5 Flash's default "thinking") spend a variable,
+                   # sometimes large chunk of the budget on hidden reasoning
+                   # before the JSON reply, and the free-text rationale can run long
         )
 
         result = _parse_mbti(raw_response)

@@ -163,8 +163,11 @@ async def run_hsp_prediction(participant_id: str) -> None:
             platform,
             messages,
             PREDICTION_SYSTEM_PROMPT,
-            2000,  # generous headroom — reasoning models (e.g. gpt-oss-120b) spend
-                   # hundreds of tokens on hidden reasoning before the JSON reply
+            6000,  # generous headroom — reasoning models (e.g. gpt-oss-120b, and
+                   # Gemini 2.5 Flash's default "thinking") spend a variable,
+                   # sometimes large chunk of the budget on hidden reasoning
+                   # before the JSON reply; too little here means a silently
+                   # truncated response the parser can't recover from
         )
 
         scores = _parse_scores(raw_response)
