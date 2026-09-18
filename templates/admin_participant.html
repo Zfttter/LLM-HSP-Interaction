@@ -567,6 +567,41 @@ function renderLeft(p) {
   }
   h += section("Post-Survey", psInner);
 
+  // ── Engagement decay (per-person slope across the 6 turn positions) ────────
+  // Each of this participant's 18 turns has a turn_number (1-6, repeated once
+  // per topic). Pooling all 3 topics' turns by turn_number and fitting one
+  // regression line per person compresses 18 potentially-noisy, late-turn-
+  // floor-effect points into a single number: how fast THIS person's
+  // engagement fades as a topic session goes on. Comparable across people
+  // (e.g. against HSPS) in a way that per-turn group comparisons can't be,
+  // since those need N-way multiple-comparison correction and lose power
+  // exactly where the floor effect is worst (turns 4-5).
+  const turns = p.voice_turns || [];
+  const wordPoints = turns
+    .map(t => ({ x: t.turn_number, y: countWords(t.whisper_transcript || "") }))
+    .filter(pt => pt.x != null);
+  const durPoints = turns
+    .filter(t => t.record_started_at && t.record_ended_at)
+    .map(t => ({ x: t.turn_number, y: (new Date(t.record_ended_at) - new Date(t.record_started_at)) / 1000 }));
+
+  const wordFit = linearFit(wordPoints);
+  const durFit  = linearFit(durPoints);
+
+  function slopeRow(label, fit, unit) {
+    if (!fit) return drow(label, "—");
+    const trend = fit.slope < -0.05 ? "Declining" : fit.slope > 0.05 ? "Increasing" : "Stable";
+    const cls   = fit.slope < -0.05 ? "diff-orange" : fit.slope > 0.05 ? "diff-green" : "";
+    return drow(label,
+      `<span class="${cls}">${fit.slope >= 0 ? "+" : ""}${fit.slope.toFixed(2)} ${unit}/turn</span>
+       <span style="color:#94a3b8;font-size:11px"> (${trend}, R²=${fit.r2.toFixed(2)}, n=${fit.n})</span>`);
+  }
+
+  h += section("Engagement Decay", [
+    `<div class="score-sub" style="margin-bottom:8px;color:#64748b">Slope of turn value vs. turn position (1–6), all 3 topics pooled.</div>`,
+    slopeRow("Word count", wordFit, "words"),
+    slopeRow("Speaking time", durFit, "sec"),
+  ].join(""));
+
   document.getElementById("left-panel").innerHTML = h;
 }
 
@@ -798,6 +833,26 @@ function fmtDate(s) {
 function countWords(text) {
   if (!text) return 0;
   return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+// Ordinary least squares fit of y on x. Returns null if fewer than 2 points
+// or x has zero variance (can't fit a line through a single x value).
+function linearFit(points) {
+  const n = points.length;
+  if (n < 2) return null;
+  const xbar = points.reduce((s, p) => s + p.x, 0) / n;
+  const ybar = points.reduce((s, p) => s + p.y, 0) / n;
+  let sxy = 0, sxx = 0, syy = 0;
+  points.forEach(p => {
+    sxy += (p.x - xbar) * (p.y - ybar);
+    sxx += (p.x - xbar) * (p.x - xbar);
+    syy += (p.y - ybar) * (p.y - ybar);
+  });
+  if (sxx === 0) return null;
+  const slope = sxy / sxx;
+  const intercept = ybar - slope * xbar;
+  const r2 = syy === 0 ? 0 : (sxy * sxy) / (sxx * syy);
+  return { slope, intercept, r2, n };
 }
 
 // Total recording time = sum of (record_ended_at - record_started_at) across turns.
