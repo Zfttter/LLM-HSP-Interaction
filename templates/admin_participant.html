@@ -611,6 +611,8 @@ function renderRight(p) {
     }
   });
 
+  let lastDraftText = null;  // scratchpad persists across turns — only show it when it actually changed
+
   topicGroups.forEach((group, gi) => {
     const topicName = TOPIC_SHORT[group.topic] || group.topic || "Unknown topic";
     const isOpen = gi === 0;  // first topic expanded by default, rest collapsed
@@ -662,14 +664,17 @@ function renderRight(p) {
       : "";
 
     // Private scratchpad — persists across turns within a topic, so its content
-    // often reflects earlier turns too, not just this one. Shown whenever the
-    // participant had typed something in it by the time they submitted this turn.
+    // is usually unchanged from the previous turn. Only show it when it actually
+    // changed since the last turn we showed it for, instead of repeating the
+    // same block 6 times in a row.
     const draftText = turn.draft_final_text || "";
-    const draftBlock = draftText.trim()
+    const draftChanged = draftText.trim() && draftText !== lastDraftText;
+    const draftBlock = draftChanged
       ? `<div class="conv-text" style="margin-top:6px;padding:6px 9px;background:#eef2ff;border-left:3px solid #6366f1;font-size:11.5px;color:#3730a3">
            <strong style="color:#4338ca;font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px">Scratchpad at submit time (${turn.draft_char_count || 0} chars, ${turn.draft_revision_count || 0} revisions):</strong><br>${esc(draftText)}
          </div>`
       : "";
+    if (draftText.trim()) lastDraftText = draftText;
 
     h += `<div class="conv-round">
       <div class="conv-round-header">
