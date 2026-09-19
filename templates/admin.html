@@ -752,6 +752,52 @@
           </table>
         </div>
       </div>
+
+      <!-- RQ4 -->
+      <div class="rq-section">
+        <div class="rq-section-header">
+          <div class="rq-section-title">RQ4 — Is the AI more sycophantic / emotionally-accommodating toward HSP users?</div>
+          <div class="rq-section-sub">
+            One subjective measure (post-survey <code>perceived_sycophancy</code>) plus two objective, output-side
+            proxies computed from the AI's own replies: <b>validation ratio</b> (share of the AI's words that are
+            affirming/agreeing — "valid", "understandable", "absolutely", "you deserve", etc.) and
+            <b>perspective rate</b> (share of turns where the AI explicitly offers a different angle instead of just
+            agreeing — "have you considered", "on the other hand", "another way to look at it", etc.). Neither proxy
+            is a validated sycophancy measure by itself — a validating word can be an appropriate response — the
+            pattern to look for is <i>high validation + rarely offering another angle</i>.
+            <br><br>
+            The table below is a rough stand-in for "controlling for input content": it compares the AI's behavior
+            between below-median and above-median HSPS participants <i>alongside</i> how negative their own input
+            was. If validation/perspective language differs by tier while input negativity does <b>not</b>, that's
+            evidence the difference isn't just the AI reacting appropriately to more distressing input from one
+            group — a real control (e.g. matching on input negemo_ratio, or modeling it as a covariate) needs more
+            data than the single digits/low tens we have right now.
+          </div>
+        </div>
+        <div class="charts-row-2">
+          <div class="chart-card">
+            <div class="chart-title">HSPS vs. Validation ratio (AI output)</div>
+            <div class="chart-caption">Y-axis = share of the AI's words per turn that are affirming/validating, averaged across the session.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq4-validation"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">HSPS vs. Perspective-offering rate (AI output)</div>
+            <div class="chart-caption">Y-axis = share of turns where the AI explicitly offered a different angle rather than just agreeing. Lower = more purely validating, less pushback.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq4-perspective"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">HSPS vs. Perceived sycophancy (self-report)</div>
+            <div class="chart-caption">Y-axis = average post-survey "perceived sycophancy" rating (1–7) across the participant's 3 topics.</div>
+            <div class="chart-canvas-wrap"><canvas id="chart-rq4-perceived"></canvas></div>
+          </div>
+        </div>
+        <div class="cond-table-wrap">
+          <table>
+            <thead><tr><th>HSPS tier</th><th class="right">N</th><th class="right">Input negemo ratio</th><th class="right">AI validation ratio</th><th class="right">AI perspective rate</th><th class="right">Perceived sycophancy</th></tr></thead>
+            <tbody id="rq4-tier-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1721,6 +1767,34 @@ function renderResearch(data) {
       <td>${escHtml(perTopic)}</td>
     </tr>`;
   }).join("");
+
+  renderHspsScatter("chart-rq4-validation", data.participants, "validation_ratio", "Share of words");
+  renderHspsScatter("chart-rq4-perspective", data.participants, "perspective_rate", "Share of turns");
+  renderHspsScatter("chart-rq4-perceived", data.participants, "perceived_sycophancy_mean", "Perceived sycophancy (1–7)");
+
+  const tier_tbody = document.getElementById("rq4-tier-tbody");
+  if (data.sycophancy_tiers) {
+    const t = data.sycophancy_tiers;
+    tier_tbody.innerHTML = `
+      <tr>
+        <td>Low (below ${fmtNum(t.median_hsps)})</td>
+        <td class="right">${t.low.n}</td>
+        <td class="right">${fmtNum(t.low.input_negemo_ratio, 4)}</td>
+        <td class="right">${fmtNum(t.low.validation_ratio, 4)}</td>
+        <td class="right">${fmtNum(t.low.perspective_rate, 3)}</td>
+        <td class="right">${fmtNum(t.low.perceived_sycophancy)}</td>
+      </tr>
+      <tr>
+        <td>High (at/above ${fmtNum(t.median_hsps)})</td>
+        <td class="right">${t.high.n}</td>
+        <td class="right">${fmtNum(t.high.input_negemo_ratio, 4)}</td>
+        <td class="right">${fmtNum(t.high.validation_ratio, 4)}</td>
+        <td class="right">${fmtNum(t.high.perspective_rate, 3)}</td>
+        <td class="right">${fmtNum(t.high.perceived_sycophancy)}</td>
+      </tr>`;
+  } else {
+    tier_tbody.innerHTML = `<tr><td colspan="6" style="color:#94a3b8">Not enough participants with an HSPS score yet.</td></tr>`;
+  }
 }
 
 // ── Initial sort indicator ────────────────────────────────────────────────────
