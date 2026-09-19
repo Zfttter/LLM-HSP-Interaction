@@ -2,6 +2,8 @@
 Survey scoring and exclusion logic.
 Condition assignment itself is handled atomically via PostgreSQL RPC (see database.py).
 """
+from typing import Optional
+
 from app.config import HSPS_ITEMS, BFI_ITEMS
 
 
@@ -9,6 +11,17 @@ def score_hsps(responses: dict) -> float:
     """Mean of 18 HSPS items (each 1-7). Returns float in [1, 7]."""
     total = sum(responses[f"hsps_{i}"] for i in range(1, 19))
     return round(total / 18, 4)
+
+
+def score_hsps_subset(responses: dict, item_numbers: list[int]) -> Optional[float]:
+    """Mean of a subset of HSPS items (each 1-7). Works on both self-report
+    (hsps_responses) and AI-predicted (ai_hsps_responses) dicts — same key
+    format (hsps_1 .. hsps_18). Returns None if any item in the subset is
+    missing rather than silently averaging over a partial subset."""
+    values = [responses.get(f"hsps_{i}") for i in item_numbers]
+    if any(v is None for v in values):
+        return None
+    return round(sum(values) / len(values), 4)
 
 
 def score_bfi(responses: dict) -> dict:

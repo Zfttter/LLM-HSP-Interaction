@@ -9,7 +9,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
-from app.config import settings
+from app.config import settings, HSPS_EMOTIONAL_SOCIAL_ITEMS
+from app.assignment import score_hsps_subset
 import app.database as db_
 import app.llm as llm_
 import app.analysis as analysis_
@@ -92,9 +93,9 @@ def api_participants(request: Request):
 
             hsps_score    = p.get("hsps_score")
             ai_hsps_score = p.get("ai_hsps_score")
-            hsps_diff: Optional[float] = None
+            hsps_diff_full: Optional[float] = None
             if hsps_score is not None and ai_hsps_score is not None:
-                hsps_diff = round(ai_hsps_score - hsps_score, 2)
+                hsps_diff_full = round(ai_hsps_score - hsps_score, 2)
 
             hsps_item_diffs: Optional[dict] = None
             hsps_responses    = p.get("hsps_responses")
@@ -108,14 +109,27 @@ def api_participants(request: Request):
                     if sv is not None and av is not None:
                         hsps_item_diffs[key_name] = round(av - sv, 1)
 
+            # Primary "Diff" shown in the table: emotional/social subset only.
+            # The full 18-item diff (hsps_diff_full) includes 9 sensory items
+            # (light/noise/pain/caffeine/startle) the conversation gives the
+            # AI no evidence for — kept around for reference, not as the headline number.
+            hsps_score_emotional    = score_hsps_subset(hsps_responses or {}, HSPS_EMOTIONAL_SOCIAL_ITEMS)
+            ai_hsps_score_emotional = score_hsps_subset(ai_hsps_responses or {}, HSPS_EMOTIONAL_SOCIAL_ITEMS)
+            hsps_diff: Optional[float] = None
+            if hsps_score_emotional is not None and ai_hsps_score_emotional is not None:
+                hsps_diff = round(ai_hsps_score_emotional - hsps_score_emotional, 2)
+
             output.append({
                 **p,
-                "mbti_guess":           sr.get("mbti_guess"),
-                "survey_completed_at":  sr.get("completed_at"),
-                "hsps_diff":            hsps_diff,
-                "hsps_item_diffs":      hsps_item_diffs,
-                "tts_voice":            vm.get("tts_voice"),
-                "turns_completed":      vm.get("turns_completed", 0),
+                "mbti_guess":              sr.get("mbti_guess"),
+                "survey_completed_at":     sr.get("completed_at"),
+                "hsps_score_emotional":    hsps_score_emotional,
+                "ai_hsps_score_emotional": ai_hsps_score_emotional,
+                "hsps_diff":               hsps_diff,       # emotional/social subset — primary
+                "hsps_diff_full":          hsps_diff_full,  # full 18-item — reference
+                "hsps_item_diffs":         hsps_item_diffs,
+                "tts_voice":               vm.get("tts_voice"),
+                "turns_completed":         vm.get("turns_completed", 0),
             })
 
         return JSONResponse(output)
@@ -193,16 +207,28 @@ def api_participant_detail(request: Request, participant_id: str):
 
     hs    = p.get("hsps_score")
     ai_hs = p.get("ai_hsps_score")
-    hsps_diff = round(ai_hs - hs, 2) if (hs is not None and ai_hs is not None) else None
+    hsps_diff_full = round(ai_hs - hs, 2) if (hs is not None and ai_hs is not None) else None
+
+    # Primary diff: emotional/social subset only (see HSPS_EMOTIONAL_SOCIAL_ITEMS) —
+    # the full-scale diff above is kept as hsps_diff_full for reference.
+    hs_emotional    = score_hsps_subset(hsps_r, HSPS_EMOTIONAL_SOCIAL_ITEMS)
+    ai_hs_emotional = score_hsps_subset(ai_hsps_r, HSPS_EMOTIONAL_SOCIAL_ITEMS)
+    hsps_diff = (
+        round(ai_hs_emotional - hs_emotional, 2)
+        if (hs_emotional is not None and ai_hs_emotional is not None) else None
+    )
 
     # Voice selected (from first turn)
     tts_voice = voice_turns[0].get("tts_voice_used") if voice_turns else None
 
     return JSONResponse({
         **p,
-        "voice_turns":      voice_turns,
-        "post_survey":      post_survey,
-        "hsps_diff":        hsps_diff,
+        "voice_turns":            voice_turns,
+        "post_survey":            post_survey,
+        "hsps_score_emotional":   hs_emotional,
+        "ai_hsps_score_emotional": ai_hs_emotional,
+        "hsps_diff":              hsps_diff,       # emotional/social subset — primary
+        "hsps_diff_full":         hsps_diff_full,  # full 18-item — reference
         "hsps_item_diffs":  item_diffs,
         "prev_id":          prev_id,
         "next_id":          next_id,

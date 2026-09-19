@@ -512,7 +512,7 @@
             <th onclick="sortBy('condition')">Condition<span class="sort-indicator" id="si-condition"></span></th>
             <th onclick="sortBy('hsps_score')" class="right">Self HSPS<span class="sort-indicator" id="si-hsps_score"></span></th>
             <th onclick="sortBy('ai_hsps_score')" class="right">AI HSPS<span class="sort-indicator" id="si-ai_hsps_score"></span></th>
-            <th onclick="sortBy('hsps_diff')" class="right">Diff<span class="sort-indicator" id="si-hsps_diff"></span></th>
+            <th onclick="sortBy('hsps_diff')" class="right" title="AI − self, emotional/social HSPS items only (9 of 18) — excludes the sensory items a conversation gives no evidence for">Diff (emo)<span class="sort-indicator" id="si-hsps_diff"></span></th>
             <th onclick="sortBy('self_mbti')">Self MBTI<span class="sort-indicator" id="si-self_mbti"></span></th>
             <th onclick="sortBy('ai_mbti_type')">AI→Subj MBTI<span class="sort-indicator" id="si-ai_mbti_type"></span></th>
             <th onclick="sortBy('mbti_guess')">Subj→AI MBTI<span class="sort-indicator" id="si-mbti_guess"></span></th>
@@ -694,7 +694,7 @@
         </div>
         <div class="cond-table-wrap">
           <table>
-            <thead><tr><th>Platform</th><th class="right">N</th><th class="right">AI HSPS error</th><th class="right">Satisfaction</th><th class="right">Trust</th></tr></thead>
+            <thead><tr><th>Platform</th><th class="right">N</th><th class="right">AI HSPS error (emotional/social subset)</th><th class="right">Satisfaction</th><th class="right">Trust</th></tr></thead>
             <tbody id="rq2-platform-tbody"></tbody>
           </table>
         </div>
@@ -709,6 +709,13 @@
             HSPS. Here the question is whether more sensitive people rate the AI differently — higher or lower
             satisfaction/trust/empathy, more affected by a "wrong read" from the AI, or a different trust trajectory
             over the 3 topics.
+            <br><br>
+            <b>"AI misjudgment" below is scored on the 9 emotional/social HSPS items only</b> (other people's moods
+            affecting you, rich inner life, feeling frazzled, etc.) — not the full 18-item scale. The other 9 items
+            ask about physical/sensory reactions (bright light, loud noise, pain, caffeine, startle) that a
+            conversation about anxiety/rumination never gives the AI any evidence about, so including them just adds
+            guessing noise to the error score. The full-scale error is still in the data as <code>hsps_error_full</code>
+            if you want to compare.
           </div>
         </div>
         <div class="charts-row-2">
@@ -728,8 +735,8 @@
             <div class="chart-canvas-wrap"><canvas id="chart-rq3-emp"></canvas></div>
           </div>
           <div class="chart-card">
-            <div class="chart-title">AI HSPS-prediction error vs. Satisfaction</div>
-            <div class="chart-caption">X-axis = |AI's guess at this person's HSPS score − their real self-reported score| (0 = AI read them perfectly). Y-axis = satisfaction. Does being "misread" by the AI track with lower satisfaction?</div>
+            <div class="chart-title">AI HSPS-prediction error (emotional/social subset) vs. Satisfaction</div>
+            <div class="chart-caption">X-axis = |AI's guess at this person's emotional/social HSPS items − their real self-reported score on those same items| (0 = AI read them perfectly; excludes the 9 sensory items the conversation gives no evidence for). Y-axis = satisfaction. Does being "misread" by the AI track with lower satisfaction?</div>
             <div class="chart-canvas-wrap"><canvas id="chart-rq3-error"></canvas></div>
           </div>
         </div>
@@ -1646,7 +1653,7 @@ function renderErrorVsSatisfaction(canvasId, participants) {
       plugins: { legend: { display: datasets.length > 0, position: "top", labels: { boxWidth: 11, padding: 12, font: { size: 12 } } } },
       scales: {
         x: {
-          title: { display: true, text: "|AI HSPS − Self HSPS|", font: { size: 12, weight: "600" } },
+          title: { display: true, text: "|AI HSPS − Self HSPS| (emotional/social subset)", font: { size: 12, weight: "600" } },
           ticks: { font: { size: 11 } },
           grid: { color: "#f1f5f9" },
         },

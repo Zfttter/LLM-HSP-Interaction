@@ -18,6 +18,8 @@ from typing import Optional
 
 import app.database as db_
 import app.llm as llm_
+from app.assignment import score_hsps_subset
+from app.config import HSPS_EMOTIONAL_SOCIAL_ITEMS
 
 # ── Word lists (hand-built approximations, not LIWC) ──────────────────────────
 
@@ -234,7 +236,21 @@ def build_research_dataset() -> dict:
 
         hsps = p.get("hsps_score")
         ai_hsps = p.get("ai_hsps_score")
-        hsps_error = abs(ai_hsps - hsps) if (hsps is not None and ai_hsps is not None) else None
+        hsps_error_full = abs(ai_hsps - hsps) if (hsps is not None and ai_hsps is not None) else None
+
+        # Primary misjudgment metric: error on just the emotional/social items
+        # (the ones a conversation could plausibly give evidence for), not the
+        # full 18-item score where the ~9 sensory items (light/noise/pain/
+        # caffeine/startle) are pure guessing for the AI and inflate the error
+        # with noise unrelated to how well it "read" the participant.
+        hsps_responses = p.get("hsps_responses") or {}
+        ai_hsps_responses = p.get("ai_hsps_responses") or {}
+        hsps_emotional = score_hsps_subset(hsps_responses, HSPS_EMOTIONAL_SOCIAL_ITEMS)
+        ai_hsps_emotional = score_hsps_subset(ai_hsps_responses, HSPS_EMOTIONAL_SOCIAL_ITEMS)
+        hsps_error = (
+            abs(ai_hsps_emotional - hsps_emotional)
+            if (hsps_emotional is not None and ai_hsps_emotional is not None) else None
+        )
 
         out_participants.append({
             "id":                 pid,
@@ -244,7 +260,10 @@ def build_research_dataset() -> dict:
             "neuroticism":        bfi.get("neuroticism"),
             "openness":           bfi.get("openness"),
             "ai_hsps_score":      ai_hsps,
-            "hsps_error":         hsps_error,
+            "hsps_score_emotional":    hsps_emotional,
+            "ai_hsps_score_emotional": ai_hsps_emotional,
+            "hsps_error":         hsps_error,       # emotional/social subset — primary misjudgment metric
+            "hsps_error_full":    hsps_error_full,  # full 18-item score — kept for reference
             "self_mbti":          p.get("self_mbti"),
             "ai_mbti_type":       p.get("ai_mbti_type"),
             "mbti_match":         (
@@ -283,10 +302,12 @@ def build_research_dataset() -> dict:
         plat = row["platform"] or "unknown"
         bucket = platforms.setdefault(plat, {
             "n": 0, "accommodation": [], "attunement": [], "followup_rate": [],
-            "ai_response_len": [], "hsps_error": [], "satisfaction": [], "trust": [],
+            "ai_response_len": [], "hsps_error": [], "hsps_error_full": [],
+            "satisfaction": [], "trust": [],
         })
         bucket["n"] += 1
-        for key in ("accommodation", "attunement", "followup_rate", "ai_response_len", "hsps_error"):
+        for key in ("accommodation", "attunement", "followup_rate", "ai_response_len",
+                    "hsps_error", "hsps_error_full"):
             if row[key] is not None:
                 bucket[key].append(row[key])
         if row["satisfaction_mean"] is not None:
@@ -303,6 +324,7 @@ def build_research_dataset() -> dict:
             "followup_rate":    _mean(bucket["followup_rate"]),
             "ai_response_len":  _mean(bucket["ai_response_len"]),
             "hsps_error":       _mean(bucket["hsps_error"]),
+            "hsps_error_full":  _mean(bucket["hsps_error_full"]),
             "satisfaction":     _mean(bucket["satisfaction"]),
             "trust":            _mean(bucket["trust"]),
         }

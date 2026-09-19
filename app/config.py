@@ -25,6 +25,19 @@ HSPS_ITEMS = [
     "Do you make a point to avoid violent movies or TV shows?",
 ]
 
+# Split of the 18 HSPS items by whether a rater could plausibly find evidence
+# for them in a ~10-15 min conversation about one emotional/social topic
+# (anxiety, rumination, anticipation) vs. items that ask about physical/sensory
+# reactions (light, noise, pain, caffeine, startle) that the conversation never
+# touches on. Used to operationalize "AI misjudgment" as the error on the
+# subset that's actually observable, instead of the full 18-item score where
+# ~half the items give the AI nothing to go on and inflate the error with pure
+# guessing noise. Items 2 and 11 are borderline calls (subtlety-awareness and
+# nervous-system overwhelm could read as either) — revisit if this doesn't
+# match how you'd want the construct validity argument to read in the writeup.
+HSPS_EMOTIONAL_SOCIAL_ITEMS = [2, 3, 8, 11, 12, 14, 15, 16, 17]
+HSPS_SENSORY_ITEMS = [1, 4, 5, 6, 7, 9, 10, 13, 18]
+
 BFI_ITEMS = [
     ("is talkative",                                "E+"),   # 1
     ("tends to find fault with others",             "A-"),   # 2
